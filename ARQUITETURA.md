@@ -10,6 +10,16 @@ foi criado em 2026-09-26 para que isso não aconteça de novo: a partir de agora
 código deve ser commitado e a Vercel deve fazer deploy automático a partir do Git, nunca
 mais via `vercel deploy` manual sem commit.
 
+**Pegadinha descoberta em 2026-09-26 (guardar para o futuro)**: depois de um rollback
+manual (`vercel rollback` ou `request_rollback`), a Vercel **trava o domínio de produção**
+nesse deployment antigo — pushes seguintes para `main` continuam buildando e aparecem como
+`state: READY, target: production` nas listagens, mas o domínio real (`paroquiano-painel.vercel.app`)
+não é atualizado sozinho. É preciso promover manualmente o deployment novo:
+`vercel promote <url-do-deployment>`. Depois de qualquer rollback, sempre confirmar com
+`vercel inspect paroquiano-painel.vercel.app` (olhar o campo `id`/`created`) que o domínio
+está mesmo no deployment esperado antes de considerar um push "publicado" — não confiar só
+no `state`/`target` do `list_deployments`.
+
 ## Estado da reconstrução do código existente
 
 O código publicado em produção (`paroquiano-painel.vercel.app`) foi parcialmente
