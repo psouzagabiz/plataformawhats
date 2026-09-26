@@ -130,4 +130,43 @@ para comparar — ver avisos no topo de `lib/confirmacao.js`, `lib/agenda.js`, `
   `lib/confirmacao.js` mas nada em `api/principal.js` as chama ainda. Precisa investigar
   como o robô se conecta (provavelmente precisa do código-fonte dele, que não está aqui).
 
+## Status em 2026-09-26: plataforma multi-instituição implementada (Fase 2)
+
+Feito na branch `multi-instituicao`, testado num deploy de preview antes de ir pra `main`:
+
+- **Schema**: colunas novas em `paroquia` (`tipo`, `status`, `contato_nome`,
+  `contato_email`), `papel` em `atendente` (`atendente` | `admin` | `super_admin`), e
+  `paroquia_id` em `conversa`, `mensagem`, `comprovante`, `conteudo`, `pronta`, `saida` —
+  tudo aditivo (`add column if not exists`). Tabela nova `tentativa_cadastro` para limitar
+  abuso do cadastro self-service. Backfill (`scripts/migrar-multi-instituicao.mjs`) rodado
+  contra produção com aprovação da usuária: 134 linhas antigas (conversas, mensagens,
+  comprovantes, mensagem pronta, fila de saída, textos do robô) marcadas com
+  `paroquia_id = 1` (Paróquia Sant'Ana, a instituição já existente). Conferido sem órfãos
+  depois.
+- **Login com seletor de instituição**: busca por nome antes de escolher o atendente
+  (`GET /api/instituicoes?busca=`), instituição lembrada no navegador para próximos logins.
+- **Cadastro self-service**: `POST /api/instituicoes` — cria a instituição + primeiro
+  atendente (`papel = 'admin'`) e já loga. Limitado a 3 cadastros/hora por IP
+  (`tentativa_cadastro`).
+- **Painel matriz**: `papel = 'super_admin'` vê um item de menu novo listando todas as
+  instituições (atendentes, conversas ativas, situação) com suspender/reativar
+  (`/api/matriz/instituicoes*`). Instituição suspensa bloqueia login
+  (`api/principal.js`, rotas `entrar` e `atendenteLogado`).
+- **Testado de ponta a ponta no preview** (não só leitura): login da Paróquia Sant'Ana
+  continua igual; criada uma instituição de teste pelo cadastro self-service e confirmado
+  que o painel dela aparece **totalmente vazio** (isolamento real, não só teórico); painel
+  matriz testado listando as duas instituições com as contagens certas; instituição de
+  teste removida do banco depois (`scripts/limpar-teste.mjs`, já apagado do repo — era só
+  para teste manual).
+- **Ainda não feito** (registrado, não escondido): dar acesso/suporte direto de dentro do
+  painel matriz para uma instituição específica (precisa de log de auditoria — ver Fase 2
+  original abaixo); marca visual segue compartilhada entre instituições (proposital, ver
+  decisão original); a Gabriela **ainda não foi marcada como `super_admin`** — isso fica
+  pra ser feito manualmente com ela ciente, não em massa.
+- **Limitação conhecida, não resolvida agora**: `conversa` e `mensagem` continuam
+  chaveadas só por `telefone` (chave primária não mudou, para não mexer numa PK já usada em
+  produção). Se a mesma pessoa (mesmo WhatsApp) escrever para duas instituições diferentes,
+  colidiria numa única linha. Corrigir isso de verdade exige mudar a chave primária dessas
+  duas tabelas para `(paroquia_id, telefone)` — não feito nesta etapa.
+
 <!-- deploy automatico via Git conectado em 2026-09-26 -->
