@@ -156,34 +156,90 @@ function formatarWhats(texto, destino) {
 const arquivoUrl = (id) => `/api/arquivo?id=${encodeURIComponent(id)}`;
 
 /* =================== Login =================== */
-let atendentesCarregados = false;
+function lembrete(chave) { try { return localStorage.getItem(chave); } catch { return null; } }
+function lembrar(chave, valor) { try { localStorage.setItem(chave, valor); } catch {} }
+
 async function mostrarLogin() {
   pararAtualizacoes();
   $('telaApp').hidden = true;
   $('telaLogin').hidden = false;
+  $('erroLogin').hidden = true;
+  $('loginInstituicaoResultados').replaceChildren();
+  $('loginInstituicaoResultados').hidden = true;
+
+  const paroquiaId = lembrete('paroquiaId');
+  const paroquiaNome = lembrete('paroquiaNome');
+  if (paroquiaId && paroquiaNome) {
+    await escolherInstituicao(Number(paroquiaId), paroquiaNome);
+  } else {
+    mostrarPassoInstituicao();
+  }
+}
+
+function mostrarPassoInstituicao() {
+  $('passoInstituicao').hidden = false;
+  $('passoAtendente').hidden = true;
+  $('loginInstituicaoBusca').value = '';
+  $('loginInstituicaoBusca').focus();
+}
+
+async function escolherInstituicao(id, nome) {
+  estado.paroquiaId = id;
+  lembrar('paroquiaId', String(id));
+  lembrar('paroquiaNome', nome);
+  $('loginInstituicaoNome').textContent = nome;
+  $('passoInstituicao').hidden = true;
+  $('passoAtendente').hidden = false;
   const caixa = $('opcoesAtendente');
-  if (!atendentesCarregados) {
-    atendentesCarregados = true;
-    try {
-      const lista = await api('atendentes');
-      let lembrado = null;
-      try { lembrado = localStorage.getItem('atendenteId'); } catch {}
-      caixa.replaceChildren();
-      for (const a of lista) {
-        const s = SETORES[a.setor] || { nome: a.setor };
-        caixa.append(el('label', {}, [
-          avatar(a.nome),
-          el('span', { class: 'quem' }, [el('strong', { texto: a.nome }), el('span', {}, [ponto(a.setor), s.nome])]),
-          el('input', { type: 'radio', name: 'atendente', value: a.id, required: '', checked: String(a.id) === lembrado ? '' : null }),
-        ]));
-      }
-    } catch (e) {
-      atendentesCarregados = false;
-      caixa.replaceChildren(el('p', { class: 'erro', texto: 'Não foi possível carregar os atendentes: ' + e.message }));
+  caixa.replaceChildren(...[1, 2, 3].map(() => el('div', { class: 'esqueleto linha-alta' })));
+  try {
+    const lista = await api(`atendentes?paroquiaId=${id}`);
+    let lembrado = null;
+    try { lembrado = localStorage.getItem('atendenteId'); } catch {}
+    caixa.replaceChildren();
+    for (const a of lista) {
+      const s = SETORES[a.setor] || { nome: a.setor };
+      caixa.append(el('label', {}, [
+        avatar(a.nome),
+        el('span', { class: 'quem' }, [el('strong', { texto: a.nome }), el('span', {}, [ponto(a.setor), s.nome])]),
+        el('input', { type: 'radio', name: 'atendente', value: a.id, required: '', checked: String(a.id) === lembrado ? '' : null }),
+      ]));
     }
+    if (!lista.length) caixa.replaceChildren(el('p', { class: 'suave pequeno', texto: 'Nenhum atendente cadastrado ainda nessa instituição.' }));
+  } catch (e) {
+    caixa.replaceChildren(el('p', { class: 'erro', texto: 'Não foi possível carregar os atendentes: ' + e.message }));
   }
   $('loginSenha').focus();
 }
+
+let buscaInstituicaoTimer = null;
+$('loginInstituicaoBusca').addEventListener('input', () => {
+  clearTimeout(buscaInstituicaoTimer);
+  const termo = $('loginInstituicaoBusca').value.trim();
+  const caixa = $('loginInstituicaoResultados');
+  if (termo.length < 2) { caixa.hidden = true; caixa.replaceChildren(); return; }
+  buscaInstituicaoTimer = setTimeout(async () => {
+    let lista = [];
+    try { lista = await api(`instituicoes?busca=${encodeURIComponent(termo)}`); } catch { /* ignora erro de busca */ }
+    caixa.replaceChildren();
+    if (!lista.length) {
+      caixa.append(el('p', { class: 'suave pequeno', texto: 'Nenhuma instituição encontrada com esse nome.' }));
+    } else {
+      for (const inst of lista) {
+        caixa.append(el('button', { type: 'button', onclick: () => escolherInstituicao(inst.id, inst.nome) }, [
+          el('strong', { texto: inst.nome }), inst.cidade ? el('span', { class: 'suave pequeno', texto: ` — ${inst.cidade}` }) : null,
+        ]));
+      }
+    }
+    caixa.hidden = false;
+  }, 300);
+});
+
+$('btnTrocarInstituicao').addEventListener('click', () => {
+  lembrar('paroquiaId', ''); lembrar('paroquiaNome', '');
+  try { localStorage.removeItem('paroquiaId'); localStorage.removeItem('paroquiaNome'); } catch {}
+  mostrarPassoInstituicao();
+});
 
 $('formLogin').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -204,6 +260,31 @@ $('formLogin').addEventListener('submit', async (e) => {
   }
 });
 
+/* ---------- Criar instituição (cadastro self-service) ---------- */
+$('btnAbrirCadastro').addEventListener('click', () => {
+  $('erroCadastro').hidden = true;
+  $('formCadastroInstituicao').reset();
+  $('dlgCadastroInstituicao').showModal();
+});
+$('dlgCadastroInstituicao').addEventListener('close', async () => {
+  if ($('dlgCadastroInstituicao').returnValue !== 'ok') return;
+  const corpo = {
+    nomeInstituicao: $('cadNome').value, tipo: $('cadTipo').value,
+    nomeResponsavel: $('cadResponsavel').value, contatoEmail: $('cadEmail').value, senha: $('cadSenha').value,
+  };
+  try {
+    const r = await api('instituicoes', { metodo: 'POST', corpo });
+    lembrar('paroquiaId', String(r.paroquiaId));
+    lembrar('paroquiaNome', corpo.nomeInstituicao);
+    try { localStorage.setItem('atendenteId', ''); } catch {}
+    await iniciarApp();
+  } catch (err) {
+    $('erroCadastro').textContent = err.message;
+    $('erroCadastro').hidden = false;
+    $('dlgCadastroInstituicao').showModal();
+  }
+});
+
 async function iniciarApp() {
   estado.eu = await api('eu');
   $('nomeAtendente').textContent = estado.eu.nome;
@@ -211,6 +292,7 @@ async function iniciarApp() {
   $('setorAtendente').textContent = s ? s.nome : estado.eu.setor;
   $('avatarAtendente').textContent = avatar(estado.eu.nome).textContent;
   $('avisoRobo').hidden = estado.eu.roboOnline;
+  $('navMatriz').hidden = !estado.eu.superAdmin;
   if (!estado.filtro) estado.filtro = estado.eu.setor;
   $('telaLogin').hidden = true;
   $('telaApp').hidden = false;
