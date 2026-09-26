@@ -110,4 +110,24 @@ Passos técnicos, nesta ordem:
 Este roteiro ainda não foi implementado — é a próxima etapa, a ser detalhada de verdade
 assim que o schema real do banco estiver em mãos.
 
+## Status em 2026-09-26: backend reconstruído e em produção
+
+`api/principal.js` e todos os `lib/*.js` foram reescritos (branch `reconstrucao-backend`,
+testados num deploy de preview e validados manualmente por Gabriela — painel, atendimentos
+com histórico real de conversa e agenda todos conferidos — antes de mesclar em `main` e ir
+para produção). Scripts de validação somente-leitura ficam em `scripts/testar-esquema.mjs`
+e `scripts/testar-consultas.mjs`.
+
+**Pontos ainda não verificados de verdade** (reconstrução de boa-fé, sem o código original
+para comparar — ver avisos no topo de `lib/confirmacao.js`, `lib/agenda.js`, `lib/teste.js`):
+- O cálculo exato de prazo de confirmação (`calcularPrazo` em `lib/agenda.js`).
+- O ciclo completo de confirmação por WhatsApp (`lib/confirmacao.js`): só foi testado que as
+  consultas rodam sem erro, **não** que uma confirmação de verdade funciona de ponta a ponta
+  com o robô.
+- Como o robô (processo local de WhatsApp, fora deste repositório) efetivamente fala com a
+  API — não há rota de webhook reconstruída para ele reportar entregas
+  (`registrarEntrega`) ou respostas (`processarResposta`); essas funções existem em
+  `lib/confirmacao.js` mas nada em `api/principal.js` as chama ainda. Precisa investigar
+  como o robô se conecta (provavelmente precisa do código-fonte dele, que não está aqui).
+
 <!-- deploy automatico via Git conectado em 2026-09-26 -->
