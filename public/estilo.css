@@ -312,6 +312,10 @@ button:disabled { opacity: .5; cursor: default; }
 .login-rodape { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 20px 0 0; }
 .login-rodape .ic { width: 15px; height: 15px; }
 .so-celular-flex { display: none; }
+.instituicao-escolhida { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 20px 0 0; }
+#loginInstituicaoResultados.opcoes-atendente { margin-top: 6px; }
+#loginInstituicaoResultados button { width: 100%; text-align: left; padding: 8px 12px; border: 1px solid var(--borda-forte); border-radius: var(--raio-m); background: var(--superficie); font-weight: 400; }
+#loginInstituicaoResultados button:hover { border-color: var(--texto-3); }
 
 /* ---------- Estrutura ---------- */
 .app { display: grid; grid-template-columns: 256px minmax(0, 1fr); height: 100vh; height: 100dvh; transition: grid-template-columns .2s ease; }

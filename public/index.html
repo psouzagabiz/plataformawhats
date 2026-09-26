@@ -91,20 +91,62 @@
   <form class="login" id="formLogin">
     <div class="marca-logo so-celular-flex"><svg class="ic"><use href="#i-cruz"></use></svg></div>
     <h1>Entrar</h1>
-    <p class="suave">Escolha o seu nome e digite a sua senha.</p>
-    <fieldset>
-      <legend>Atendente</legend>
-      <div id="opcoesAtendente" class="opcoes-atendente">
-        <div class="esqueleto linha-alta"></div><div class="esqueleto linha-alta"></div><div class="esqueleto linha-alta"></div>
+    <p class="suave">Escolha a sua instituição, o seu nome e digite a sua senha.</p>
+
+    <div id="passoInstituicao">
+      <label for="loginInstituicaoBusca">Instituição</label>
+      <input id="loginInstituicaoBusca" type="search" placeholder="Digite o nome da sua paróquia ou escola" autocomplete="off">
+      <div id="loginInstituicaoResultados" class="opcoes-atendente" hidden></div>
+    </div>
+
+    <div id="passoAtendente" hidden>
+      <div class="instituicao-escolhida">
+        <span id="loginInstituicaoNome" class="suave"></span>
+        <button type="button" class="link pequeno" id="btnTrocarInstituicao">Trocar</button>
       </div>
-    </fieldset>
-    <label for="loginSenha">Senha</label>
-    <input id="loginSenha" type="password" autocomplete="current-password" required>
-    <p id="erroLogin" class="erro" role="alert" hidden></p>
-    <button type="submit" class="primario largo grande" id="btnEntrar">Entrar</button>
-    <p class="login-rodape suave pequeno"><svg class="ic"><use href="#i-escudo"></use></svg> Acesso restrito à equipe da paróquia</p>
+      <fieldset>
+        <legend>Atendente</legend>
+        <div id="opcoesAtendente" class="opcoes-atendente"></div>
+      </fieldset>
+      <label for="loginSenha">Senha</label>
+      <input id="loginSenha" type="password" autocomplete="current-password">
+      <p id="erroLogin" class="erro" role="alert" hidden></p>
+      <button type="submit" class="primario largo grande" id="btnEntrar">Entrar</button>
+    </div>
+
+    <p class="login-rodape suave pequeno"><svg class="ic"><use href="#i-escudo"></use></svg> Acesso restrito à equipe da instituição</p>
+    <p class="suave pequeno" style="text-align:center;margin-top:8px">
+      Sua instituição ainda não está aqui?
+      <button type="button" class="link pequeno" id="btnAbrirCadastro">Criar cadastro</button>
+    </p>
   </form>
 </main>
+
+<dialog id="dlgCadastroInstituicao" aria-labelledby="cadastroTitulo">
+  <form method="dialog" id="formCadastroInstituicao">
+    <h2 id="cadastroTitulo">Criar minha instituição</h2>
+    <p class="suave pequeno">Cria um cadastro novo, independente, para a sua paróquia, escola ou outra instituição.</p>
+    <label for="cadNome">Nome da instituição</label>
+    <input id="cadNome" maxlength="120" required>
+    <label for="cadTipo">Tipo</label>
+    <select id="cadTipo">
+      <option value="paroquia">Paróquia</option>
+      <option value="escola">Escola católica</option>
+      <option value="outro">Outro</option>
+    </select>
+    <label for="cadResponsavel">Seu nome (você será a primeira atendente/admin)</label>
+    <input id="cadResponsavel" maxlength="80" required>
+    <label for="cadEmail">E-mail de contato (opcional)</label>
+    <input id="cadEmail" type="email" maxlength="120">
+    <label for="cadSenha">Crie uma senha</label>
+    <input id="cadSenha" type="password" autocomplete="new-password" minlength="4" required>
+    <p class="erro" id="erroCadastro" role="alert" hidden></p>
+    <div class="botoes">
+      <button value="cancelar" formnovalidate class="secundario">Cancelar</button>
+      <button value="ok" class="primario" id="btnCadastrar">Criar e entrar</button>
+    </div>
+  </form>
+</dialog>
 
 <!-- ============ PLATAFORMA ============ -->
 <div id="telaApp" class="app">
@@ -124,6 +166,7 @@
       <hr>
       <button class="nav" data-vista="textos" title="Mensagens automáticas"><svg class="ic"><use href="#i-robo"></use></svg><span>Mensagens automáticas</span></button>
       <button class="nav" data-vista="configuracoes" title="Configurações"><svg class="ic"><use href="#i-ajustes"></use></svg><span>Configurações</span></button>
+      <button class="nav" data-vista="matriz" title="Painel matriz" id="navMatriz" hidden><svg class="ic"><use href="#i-escudo"></use></svg><span>Painel matriz</span></button>
     </nav>
     <button class="nav recolher" id="btnRecolher" aria-label="Expandir menu" title="Expandir menu"><svg class="ic"><use href="#i-recolher"></use></svg><span>Expandir menu</span></button>
   </aside>
@@ -421,6 +464,19 @@
         </section>
       </div>
     </section>
+
+    <!-- ---------- Painel matriz (super-admin) ---------- -->
+    <section id="vistaMatriz" class="vista pagina" data-nome="matriz" hidden>
+      <div class="pagina-conteudo">
+        <div class="pagina-topo">
+          <div>
+            <h1>Painel matriz</h1>
+            <p class="subtitulo">Todas as instituições cadastradas na plataforma.</p>
+          </div>
+        </div>
+        <div id="matrizLista"></div>
+      </div>
+    </section>
   </div>
 </div>
 
@@ -561,5 +617,6 @@
 <script src="/painel.js"></script>
 <script src="/agenda.js"></script>
 <script src="/teste.js"></script>
+<script src="/matriz.js"></script>
 </body>
 </html>
