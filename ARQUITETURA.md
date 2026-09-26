@@ -42,10 +42,33 @@ limpava).
 
 O Postgres é hospedado no Supabase, conectado à Vercel via `POSTGRES_URL`/`DATABASE_URL`.
 **Já tem dados reais de produção** (conversas, agenda, comprovantes). Antes de escrever
-qualquer migração para o modelo multi-instituição (ver abaixo), rode uma introspecção
-somente leitura do schema real (`information_schema.columns`) com `vercel env pull` +
-um script Node local usando o pacote `postgres` (mesma lib do projeto) — nunca escreva
-`create table`/`alter table` adivinhando as colunas.
+qualquer migração, rode `scripts/introspeccao-schema.mjs` (somente leitura, usa
+`information_schema.columns` — nunca faz `create`/`alter`) com
+`vercel env pull .env.local && node --env-file=.env.local scripts/introspeccao-schema.mjs`.
+
+### Descoberta importante (2026-09-26): a migração multi-instituição já começou no banco
+
+O schema real **já tem** uma tabela `paroquia` (id, nome, cidade, fuso,
+antecedencia_confirmacao_min, horario_envio_confirmacao) e coluna `paroquia_id` em:
+`atendente`, `compromisso`, `compromisso_historico`, `dia_fechado`, `expediente`, `padre`,
+`teste_confirmacao`. Isso é quase certamente parte do trabalho feito na sessão de
+2026-09-25 à noite que motivou este resgate: mudanças de banco de dados são permanentes
+(rodam direto no Postgres), diferente de deploys de código (que nunca chegaram a ser
+publicados) — então essa parte sobreviveu.
+
+**Porém a migração ficou pela metade**: as tabelas de conversas e atendimento —
+`conversa`, `mensagem`, `comprovante`, `conteudo` (textos do robô, linha única id=1),
+`pronta`, `midia`, `saida`, `resposta_recebida`, `presenca`, `webhook_recebido` —
+**ainda não têm `paroquia_id`**. O código atual (`principal.js`, `banco.js`) também não
+foi recuperado o suficiente para confirmar se já lê/grava essas colunas novas ou não.
+
+Isso muda a Fase 2 do roteiro abaixo: não é "criar do zero", é **terminar** uma migração
+já em andamento — adicionar `paroquia_id` (nullable, depois backfill com a paróquia atual,
+depois not null) nas tabelas que faltam, e então atualizar o código do servidor para
+filtrar tudo por `paroquia_id` da sessão.
+
+Schema completo das 21 tabelas capturado em 2026-09-26 — rodar o script de novo antes de
+qualquer migração para confirmar que nada mudou desde então.
 
 ## Roteiro: transformar em plataforma multi-instituição
 
