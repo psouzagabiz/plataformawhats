@@ -21,11 +21,18 @@ export default async function handler(req, res) {
       await sql`create extension if not exists pg_net`;
       await sql`select cron.unschedule(jobid) from cron.job where jobname = 'rotina-confirmacoes'`;
       const comando = `select net.http_get(url := '${url.replace(/'/g, "''")}', headers := '${cabecalhos.replace(/'/g, "''")}'::jsonb)`;
-      // NOTA DE RECONSTRUÇÃO: o restante deste arquivo (agendamento do cron.schedule e o
-      // corpo principal que chama executarRotina()) foi cortado pela API de leitura da
-      // Vercel (~600 caracteres omitidos) e precisa ser reescrito.
+      await sql`select cron.schedule('rotina-confirmacoes', '* * * * *', ${comando})`;
+      return res.status(200).json({ ok: true, agendado: true });
     }
+
+    // NOTA DE RECONSTRUÇÃO: o corpo desta chamada regular (o que de fato roda a cada
+    // minuto) foi cortado pela API de leitura da Vercel e foi reescrito aqui chamando
+    // executarRotina() diretamente — ver lib/confirmacao.js para o aviso de reconstrução
+    // dessa lógica.
+    const resultado = await executarRotina(String(req.query.origem || ''));
+    return res.status(200).json({ ok: true, ...resultado });
   } catch (e) {
+    console.error('[rotina]', e);
     return res.status(500).json({ erro: e.message });
   }
 }
