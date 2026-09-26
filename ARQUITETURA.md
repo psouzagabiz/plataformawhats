@@ -100,3 +100,5 @@ Passos técnicos, nesta ordem:
 
 Este roteiro ainda não foi implementado — é a próxima etapa, a ser detalhada de verdade
 assim que o schema real do banco estiver em mãos.
+
+<!-- deploy automatico via Git conectado em 2026-09-26 -->
