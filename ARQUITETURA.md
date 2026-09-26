@@ -20,16 +20,25 @@ por chamada):
 **Completos** (lidos direto do servidor estático, sem corte):
 `public/app.js`, `public/ui.js`, `public/painel.js`, `public/agenda.js`, `public/teste.js`,
 `public/estilo.css`, `public/agenda.css`, `public/index.html` (reconstruído via DOM ao
-vivo — ver nota no topo do próprio arquivo), `src/api/rotina.js` (~99% completo),
-`src/lib/seguranca.js`, `vercel.json`, `package.json`.
+vivo — ver nota no topo do próprio arquivo), `api/rotina.js` (~99% completo),
+`lib/seguranca.js`, `vercel.json`, `package.json`.
 
 **Incompletos** (cortados pela API da Vercel — têm nota `NOTA DE RECONSTRUÇÃO` no topo,
 **não fazer deploy como estão**):
-`src/lib/banco.js`, `src/api/principal.js`.
+`lib/banco.js`, `api/principal.js`.
 
 **Nunca lidos** (existem em produção, mas esta sessão não chegou a buscá-los — stubs
 apenas para não deixar buracos silenciosos):
-`src/lib/agenda.js`, `src/lib/confirmacao.js`, `src/lib/rotasAgenda.js`, `src/lib/teste.js`.
+`lib/agenda.js`, `lib/confirmacao.js`, `lib/rotasAgenda.js`, `lib/teste.js`.
+
+**Nota sobre a estrutura de pastas**: o deployment original (visto via
+`list_deployment_files`) mostrava tudo aninhado sob uma pasta `src/`. O projeto na Vercel
+tem "Root Directory" vazio (raiz do repo) — confirmado no painel — então o zero-config só
+reconhece `api/*.js` e `lib/*.js` na raiz do repositório, não sob `src/`. Um primeiro push
+com tudo sob `src/` falhou o build ("The pattern api/principal.js... doesn't match any
+Serverless Functions"); a estrutura foi corrigida para `api/`, `lib/` e `public/` direto na
+raiz do repo (mantendo os imports relativos entre `api/` e `lib/` intactos, já que
+continuam sendo pastas irmãs).
 
 O bug relatado pela usuária (Gabriela) — no login, o espaço onde deveriam aparecer os
 atendentes (Gabriela/Jucilda/Tiago) ficava abaixo de três blocos de carregamento vazios —
