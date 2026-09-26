@@ -1,0 +1,12 @@
+{
+  "name": "paroquiano-painel",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "postgres": "^3.4.9"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@electric-sql/pglite-socket": "^0.2.11"
+  }
+}

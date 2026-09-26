@@ -1,0 +1,31 @@
+// Rotina automática da agenda (confirmações e desmarcações).
+// Chamada a cada minuto pelo agendador do banco (pg_cron do Supabase) com o cabeçalho x-rotina-token.
+import { banco, garantirEsquema } from '../lib/banco.js';
+import { tokenIgual } from '../lib/seguranca.js';
+import { executarRotina } from '../lib/confirmacao.js';
+
+export default async function handler(req, res) {
+  res.setHeader('Cache-Control', 'no-store');
+  const autorizado = tokenIgual(req.headers['x-rotina-token'], process.env.ROTINA_TOKEN) ||
+    (process.env.CRON_SECRET && tokenIgual(req.headers.authorization, `Bearer ${process.env.CRON_SECRET}`));
+  if (!autorizado) return res.status(401).json({ erro: 'Não autorizado' });
+  try {
+    await garantirEsquema();
+    // configuração única: o próprio banco (pg_cron do Supabase) passa a chamar esta rotina a cada minuto,
+    // sem depender do computador da paróquia
+    if (req.query.agendar === '1') {
+      const sql = banco();
+      const url = `https://${req.headers.host}/api/rotina?origem=pg_cron`;
+      const cabecalhos = JSON.stringify({ 'x-rotina-token': process.env.ROTINA_TOKEN });
+      await sql`create extension if not exists pg_cron`;
+      await sql`create extension if not exists pg_net`;
+      await sql`select cron.unschedule(jobid) from cron.job where jobname = 'rotina-confirmacoes'`;
+      const comando = `select net.http_get(url := '${url.replace(/'/g, "''")}', headers := '${cabecalhos.replace(/'/g, "''")}'::jsonb)`;
+      // NOTA DE RECONSTRUÇÃO: o restante deste arquivo (agendamento do cron.schedule e o
+      // corpo principal que chama executarRotina()) foi cortado pela API de leitura da
+      // Vercel (~600 caracteres omitidos) e precisa ser reescrito.
+    }
+  } catch (e) {
+    return res.status(500).json({ erro: e.message });
+  }
+}
