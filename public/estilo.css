@@ -370,6 +370,24 @@ button:disabled { opacity: .5; cursor: default; }
 }
 .estado-robo .ponto-status { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .estado-robo.desligado { color: var(--erro); background: var(--erro-suave); }
+
+/* ---------- Sino de novas mensagens ---------- */
+#btnSom { position: relative; }
+#btnSom.mudo { color: var(--texto-3); }
+#btnSom.mudo .ic { opacity: .55; }
+#btnSom .ic { transform-origin: 50% 15%; }
+#btnSom.tocando .ic { animation: tocar-sino .6s ease-in-out; }
+@keyframes tocar-sino {
+  0%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(14deg); }
+  30% { transform: rotate(-12deg); }
+  45% { transform: rotate(8deg); }
+  60% { transform: rotate(-6deg); }
+  75% { transform: rotate(2deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #btnSom.tocando .ic { animation: none; }
+}
 #btnTema .tema-sol { display: none; }
 [data-theme="dark"] #btnTema .tema-sol { display: block; }
 [data-theme="dark"] #btnTema .tema-lua { display: none; }

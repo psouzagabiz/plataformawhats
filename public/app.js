@@ -18,6 +18,8 @@ const estado = {
   ultimoId: 0,
   ultimoDia: '',
   arquivo: null,
+  conversasCarregadas: false,
+  somAtivo: lembrete('som') !== '0',
 };
 
 /* =================== Utilitários =================== */
@@ -50,6 +52,28 @@ function toast(texto, tipo = 'info') {
   caixa.append(t);
   while (caixa.children.length > 3) caixa.firstChild.remove();
   setTimeout(fechar, tipo === 'erro' ? 7000 : 4500);
+}
+
+// sino de novas mensagens: dois tons sintetizados por Web Audio, sem depender de arquivo
+let contextoAudio;
+function tocarSino() {
+  try {
+    contextoAudio ||= new (window.AudioContext || window.webkitAudioContext)();
+    if (contextoAudio.state === 'suspended') contextoAudio.resume();
+    const agora = contextoAudio.currentTime;
+    const tom = (freq, inicio, duracao, ganho) => {
+      const osc = contextoAudio.createOscillator();
+      const g = contextoAudio.createGain();
+      osc.type = 'sine'; osc.frequency.value = freq;
+      g.gain.setValueAtTime(0, inicio);
+      g.gain.linearRampToValueAtTime(ganho, inicio + .015);
+      g.gain.exponentialRampToValueAtTime(.0001, inicio + duracao);
+      osc.connect(g); g.connect(contextoAudio.destination);
+      osc.start(inicio); osc.stop(inicio + duracao + .05);
+    };
+    tom(659.25, agora, .28, .1);        // Mi5
+    tom(987.77, agora + .09, .32, .09); // Si5
+  } catch { /* som é um extra; nunca deve travar o painel */ }
 }
 
 // estado vazio: ilustração simples + orientação do próximo passo
@@ -355,10 +379,25 @@ document.querySelectorAll('.nav').forEach((b) => b.addEventListener('click', asy
 /* =================== Lista de conversas =================== */
 async function carregarConversas() {
   try {
-    estado.conversas = await api('conversas');
+    const novas = await api('conversas');
+    if (estado.conversasCarregadas) notificarSeChegouMensagem(estado.conversas, novas);
+    estado.conversas = novas;
+    estado.conversasCarregadas = true;
     desenharAbas();
     desenharLista();
   } catch { /* tenta de novo na próxima atualização */ }
+}
+
+// toca o sino quando uma conversa recebe mensagem nova do fiel (não da própria equipe/robô
+// respondendo) — comparado com o instantâneo anterior, ignorado na primeira carga (login)
+function notificarSeChegouMensagem(antes, depois) {
+  const vistoPor = new Map(antes.map((c) => [c.telefone, c.ultimaEm]));
+  const chegou = depois.some((c) => c.ultimaRemetente === 'cliente' && c.ultimaEm && c.ultimaEm !== vistoPor.get(c.telefone));
+  if (!chegou) return;
+  $('btnSom').classList.remove('tocando');
+  void $('btnSom').offsetWidth;
+  $('btnSom').classList.add('tocando');
+  if (estado.somAtivo) tocarSino();
 }
 
 const aguardando = (c) => c.estado === 'humano';

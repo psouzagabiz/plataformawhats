@@ -28,6 +28,21 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
 });
 rotularTema();
 
+/* ---------- Som de novas mensagens ---------- */
+function rotularSom() {
+  const texto = estado.somAtivo ? 'Desligar som de novas mensagens' : 'Ligar som de novas mensagens';
+  $('btnSom').setAttribute('aria-label', texto);
+  $('btnSom').title = estado.somAtivo ? 'Som de novas mensagens ligado' : 'Som de novas mensagens desligado';
+  $('btnSom').classList.toggle('mudo', !estado.somAtivo);
+}
+$('btnSom').addEventListener('click', () => {
+  estado.somAtivo = !estado.somAtivo;
+  guardar('som', estado.somAtivo ? '1' : '0');
+  rotularSom();
+});
+$('btnSom').addEventListener('animationend', () => $('btnSom').classList.remove('tocando'));
+rotularSom();
+
 /* ---------- Menu lateral: recolher (computador) e gaveta (celular) ---------- */
 const celular = () => matchMedia('(max-width: 760px)').matches;
 function rotularRecolher() {
