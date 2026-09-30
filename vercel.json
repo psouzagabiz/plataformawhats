@@ -1,12 +1,20 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "outputDirectory": "public",
   "regions": ["gru1"],
   "functions": {
     "api/principal.js": { "maxDuration": 30 }
   },
   "rewrites": [
-    { "source": "/api/:rota*", "destination": "/api/principal?rota=:rota*" }
+    { "source": "/api/:rota*", "destination": "/api/principal?rota=:rota*" },
+    { "source": "/painel-antigo", "destination": "/legado/index.html" },
+    { "source": "/app.js", "destination": "/legado/app.js" },
+    { "source": "/estilo.css", "destination": "/legado/estilo.css" },
+    { "source": "/agenda.js", "destination": "/legado/agenda.js" },
+    { "source": "/agenda.css", "destination": "/legado/agenda.css" },
+    { "source": "/painel.js", "destination": "/legado/painel.js" },
+    { "source": "/matriz.js", "destination": "/legado/matriz.js" },
+    { "source": "/teste.js", "destination": "/legado/teste.js" },
+    { "source": "/ui.js", "destination": "/legado/ui.js" }
   ],
   "headers": [
     {
