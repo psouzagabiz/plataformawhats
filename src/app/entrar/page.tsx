@@ -168,6 +168,12 @@ export default function EntrarPage() {
             <FormularioEntrar />
           </Suspense>
         </div>
+        <p className="mt-6 text-center text-xs text-parchment/40">
+          Sua instituição ainda não está cadastrada?{" "}
+          <a href="/cadastro" className="text-candle-dim underline">
+            Cadastre-se
+          </a>
+        </p>
       </div>
     </main>
   );

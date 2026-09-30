@@ -20,7 +20,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-parchment">
-      <Sidebar />
+      <Sidebar superAdmin={eu.superAdmin} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar nome={eu.nome} setor={eu.setor} roboOnline={eu.roboOnline} superAdmin={eu.superAdmin} />
         <main className="flex-1 px-6 py-8 md:px-10">{children}</main>

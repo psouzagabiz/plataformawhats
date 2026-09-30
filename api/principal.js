@@ -21,6 +21,7 @@ import {
 import { rotasAgenda } from '../lib/rotasAgenda.js';
 import { processarTeste, consultarTeste } from '../lib/teste.js';
 import { roboOnline } from '../lib/presenca.js';
+import { criarCheckout } from '../lib/pagamentos.js';
 import { Erro, Erro400, Erro403, Erro404, Erro429 } from '../lib/erros.js';
 
 const DURACAO_SESSAO_DIAS = 7;
@@ -181,9 +182,12 @@ async function rotearJson(req, res, { rota, metodo, sql }) {
     if (String(senha || '').length < 4) throw new Erro400('A senha precisa ter pelo menos 4 caracteres.');
     const tipoValido = TIPOS_INSTITUICAO.includes(tipo) ? tipo : 'outro';
 
+    // status 'pendente': só vira 'ativa' quando o webhook do Stripe confirmar a assinatura
+    // (lib/pagamentos.js) — atendenteLogado() já exige status='ativa', então isso basta
+    // pra bloquear o acesso até o pagamento confirmar, sem mexer em mais nada da auth.
     const [instituicao] = await sql`
-      insert into paroquia (nome, tipo, contato_nome, contato_email)
-      values (${nome}, ${tipoValido}, ${responsavel}, ${limpa(contatoEmail, 120) || null})
+      insert into paroquia (nome, tipo, contato_nome, contato_email, status)
+      values (${nome}, ${tipoValido}, ${responsavel}, ${limpa(contatoEmail, 120) || null}, 'pendente')
       returning id
     `;
     const [atendente] = await sql`
@@ -195,6 +199,13 @@ async function rotearJson(req, res, { rota, metodo, sql }) {
     if (!atendente) throw new Erro400('Já existe um atendente com esse nome. Escolha outro nome para continuar.');
     await criarSessao(sql, res, atendente.id);
     return { paroquiaId: instituicao.id };
+  }
+
+  if (rota === 'checkout' && metodo === 'POST') {
+    const { paroquiaId } = body();
+    const proto = req.headers['x-forwarded-proto'] || 'https';
+    const urlBase = `${proto}://${req.headers.host}`;
+    return criarCheckout(sql, { paroquiaId, urlBase });
   }
 
   if (rota === 'atendentes' && metodo === 'GET') {
@@ -384,8 +395,11 @@ async function rotasMatriz({ rota, metodo, sql, corpo }) {
     return sql`
       select p.id, p.nome, p.tipo, p.status, p.criado_em as "criadoEm",
         (select count(*)::int from atendente a where a.paroquia_id = p.id) as "totalAtendentes",
-        (select count(*)::int from conversa c where c.paroquia_id = p.id and c.estado = 'humano') as "conversasAtivas"
-      from paroquia p order by p.criado_em desc
+        (select count(*)::int from conversa c where c.paroquia_id = p.id and c.estado = 'humano') as "conversasAtivas",
+        ass.status as "statusAssinatura", ass.periodo_fim as "periodoFimAssinatura"
+      from paroquia p
+      left join assinatura ass on ass.paroquia_id = p.id
+      order by p.criado_em desc
     `;
   }
   if (rota === 'matriz/instituicoes/suspender' && metodo === 'POST') {

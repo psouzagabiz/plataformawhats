@@ -4,20 +4,21 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 
-// Fase 0: só as telas que já existem de verdade no painel novo. Itens novos
+// Fase 0/2: só as telas que já existem de verdade no painel novo. Itens novos
 // (dízimos, paroquianos, campanhas, mensagens automáticas...) entram aqui à
 // medida que cada fase do plano de mesclagem for implementada.
 const ITENS = [{ href: "/dashboard", label: "Visão geral" }];
 
-export function Sidebar() {
+export function Sidebar({ superAdmin }: { superAdmin: boolean }) {
   const pathname = usePathname();
+  const itens = superAdmin ? [...ITENS, { href: "/dashboard/matriz", label: "Painel matriz" }] : ITENS;
   return (
     <aside className="hidden w-56 shrink-0 border-r border-parchment-line bg-parchment-card md:block">
       <div className="px-6 py-6">
         <span className="font-display text-lg italic text-vesper">Paroquiano</span>
       </div>
       <nav className="flex flex-col gap-0.5 px-3">
-        {ITENS.map((item) => {
+        {itens.map((item) => {
           const ativo = pathname === item.href;
           return (
             <Link
