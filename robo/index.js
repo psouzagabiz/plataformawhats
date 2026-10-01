@@ -59,15 +59,26 @@ async function conectar() {
         if (msg.key.fromMe) continue;
         const telefone = msg.key.remoteJid;
         if (!telefone || telefone.endsWith('@g.us') || telefone === 'status@broadcast') continue;
-        const texto = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
+
+        // O WhatsApp manda vários eventos pelo mesmo canal de "mensagem recebida" que não são
+        // resposta nenhuma da pessoa: recibo de entrega/leitura, reação, mensagem de sistema
+        // etc. — todos chegam com msg.message sem nenhum dos campos de conteúdo reconhecido,
+        // ou seja, texto = "". Tratar isso como "a pessoa respondeu vazio" foi exatamente o
+        // que causou o flood: cada evento desses acionava "não entendi" + reenviava o menu.
+        const conteudoMsg = msg.message;
+        const texto = conteudoMsg?.conversation || conteudoMsg?.extendedTextMessage?.text || '';
+        const ehMidiaReconhecida = !!(conteudoMsg?.imageMessage || conteudoMsg?.documentMessage
+          || conteudoMsg?.audioMessage || conteudoMsg?.videoMessage || conteudoMsg?.stickerMessage);
+        if (!texto && !ehMidiaReconhecida) continue; // nenhum conteúdo real — ignora por completo
         const nome = msg.pushName || '';
 
         // trava contra duplicidade: o WhatsApp às vezes entrega o mesmo evento mais de uma
         // vez (visto na prática com números "@lid"). Se essa mensagem já foi gravada antes,
         // é reentrega do mesmo evento — ignora tudo (senão o robô responde em dobro/floodando).
+        const textoGravado = texto || (ehMidiaReconhecida ? '[mídia recebida — tipo ainda não suportado pelo robô]' : '');
         const [inserida] = await sql`
           insert into mensagem (telefone, remetente, autor, texto, paroquia_id, origem)
-          values (${telefone}, 'cliente', ${nome}, ${texto}, ${PAROQUIA_ID}, ${msg.key.id})
+          values (${telefone}, 'cliente', ${nome}, ${textoGravado}, ${PAROQUIA_ID}, ${msg.key.id})
           on conflict (origem) where origem is not null do nothing
           returning id
         `;
@@ -90,7 +101,9 @@ async function conectar() {
             .catch((e) => { console.error('[robo] processarResposta', e); return null; });
           tratadoComoConfirmacao = !!r?.ok;
         }
-        if (!tratadoComoConfirmacao) {
+        // mídia (foto/PDF/áudio) só fica registrada na conversa por enquanto — o motor de
+        // conversa não roda pra ela, senão cairia no mesmo problema (texto vazio = "inválido").
+        if (!tratadoComoConfirmacao && texto) {
           await processarMensagemCliente(sql, { paroquiaId: PAROQUIA_ID, telefone, texto })
             .catch((e) => console.error('[robo] processarMensagemCliente', e));
         }
