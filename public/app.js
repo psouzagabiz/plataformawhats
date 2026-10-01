@@ -75,6 +75,14 @@ function tocarSino() {
     tom(987.77, agora + .09, .32, .09); // Si5
   } catch { /* som é um extra; nunca deve travar o painel */ }
 }
+// o navegador só libera áudio depois de uma interação real da pessoa — prepara o contexto
+// no primeiro clique/toque da sessão, bem antes do sino tentar tocar sozinho pelo timer
+document.addEventListener('pointerdown', () => {
+  try {
+    contextoAudio ||= new (window.AudioContext || window.webkitAudioContext)();
+    if (contextoAudio.state === 'suspended') contextoAudio.resume();
+  } catch { /* idem acima */ }
+}, { once: true });
 
 // estado vazio: ilustração simples + orientação do próximo passo
 function vazio(titulo, texto, acao) {

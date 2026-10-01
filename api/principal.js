@@ -312,7 +312,7 @@ async function rotearJson(req, res, { rota, metodo, sql }) {
     const texto = c?.texto || 'Encerrando por aqui. Se precisar de algo mais, é só chamar!';
     await sql`insert into mensagem (telefone, remetente, texto, paroquia_id) values (${telefone}, 'bot', ${texto}, ${eu.paroquiaId})`;
     await sql`insert into saida (tipo, telefone, texto, paroquia_id) values ('texto', ${telefone}, ${texto}, ${eu.paroquiaId})`;
-    await sql`update conversa set estado = null where telefone = ${telefone} and paroquia_id = ${eu.paroquiaId}`;
+    await sql`update conversa set estado = null, etapa = null, tentativas_invalidas = 0 where telefone = ${telefone} and paroquia_id = ${eu.paroquiaId}`;
     return {};
   }
 

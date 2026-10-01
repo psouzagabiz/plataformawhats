@@ -8,6 +8,7 @@ import pino from 'pino';
 import QRCode from 'qrcode';
 import { banco, garantirEsquema } from '../lib/banco.js';
 import { processarResposta, registrarEntrega, descartarEnviosVencidos } from '../lib/confirmacao.js';
+import { processarMensagemCliente } from '../lib/robo-conversa.js';
 import { usePostgresAuthState } from './auth-postgres.js';
 
 const PAROQUIA_ID = Number(process.env.PAROQUIA_ID || 1);
@@ -61,22 +62,30 @@ async function conectar() {
         const texto = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
         const nome = msg.pushName || '';
 
+        // nome não vem do pushName do WhatsApp: o robô pergunta o nome na saudação e é dono
+        // dessa coluna a partir daí (ver lib/robo-conversa.js) — aqui só garante que a linha exista.
         await sql`
           insert into conversa (telefone, nome, paroquia_id, atualizado_em)
-          values (${telefone}, ${nome}, ${PAROQUIA_ID}, now())
-          on conflict (telefone) do update set
-            atualizado_em = now(),
-            nome = coalesce(nullif(conversa.nome, ''), ${nome})
+          values (${telefone}, '', ${PAROQUIA_ID}, now())
+          on conflict (telefone) do update set atualizado_em = now()
         `;
         await sql`
           insert into mensagem (telefone, remetente, autor, texto, paroquia_id)
           values (${telefone}, 'cliente', ${nome}, ${texto}, ${PAROQUIA_ID})
         `;
 
+        // confirmação de presença (1/2/3) tem prioridade sobre o menu só quando existe
+        // mesmo um compromisso aguardando resposta desse telefone; senão, é navegação de menu.
         const resposta = texto.trim();
+        let tratadoComoConfirmacao = false;
         if (['1', '2', '3'].includes(resposta)) {
-          await processarResposta({ origem: msg.key.id, telefone, resposta, paroquiaId: PAROQUIA_ID })
-            .catch((e) => console.error('[robo] processarResposta', e));
+          const r = await processarResposta({ origem: msg.key.id, telefone, resposta, paroquiaId: PAROQUIA_ID })
+            .catch((e) => { console.error('[robo] processarResposta', e); return null; });
+          tratadoComoConfirmacao = !!r?.ok;
+        }
+        if (!tratadoComoConfirmacao) {
+          await processarMensagemCliente(sql, { paroquiaId: PAROQUIA_ID, telefone, texto })
+            .catch((e) => console.error('[robo] processarMensagemCliente', e));
         }
       } catch (e) {
         console.error('[robo] erro processando mensagem recebida', e);
