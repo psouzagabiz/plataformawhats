@@ -62,16 +62,23 @@ async function conectar() {
         const texto = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
         const nome = msg.pushName || '';
 
+        // trava contra duplicidade: o WhatsApp às vezes entrega o mesmo evento mais de uma
+        // vez (visto na prática com números "@lid"). Se essa mensagem já foi gravada antes,
+        // é reentrega do mesmo evento — ignora tudo (senão o robô responde em dobro/floodando).
+        const [inserida] = await sql`
+          insert into mensagem (telefone, remetente, autor, texto, paroquia_id, origem)
+          values (${telefone}, 'cliente', ${nome}, ${texto}, ${PAROQUIA_ID}, ${msg.key.id})
+          on conflict (origem) where origem is not null do nothing
+          returning id
+        `;
+        if (!inserida) { console.log('[robo] mensagem duplicada ignorada', msg.key.id); continue; }
+
         // nome não vem do pushName do WhatsApp: o robô pergunta o nome na saudação e é dono
         // dessa coluna a partir daí (ver lib/robo-conversa.js) — aqui só garante que a linha exista.
         await sql`
           insert into conversa (telefone, nome, paroquia_id, atualizado_em)
           values (${telefone}, '', ${PAROQUIA_ID}, now())
           on conflict (telefone) do update set atualizado_em = now()
-        `;
-        await sql`
-          insert into mensagem (telefone, remetente, autor, texto, paroquia_id)
-          values (${telefone}, 'cliente', ${nome}, ${texto}, ${PAROQUIA_ID})
         `;
 
         // confirmação de presença (1/2/3) tem prioridade sobre o menu só quando existe
