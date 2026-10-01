@@ -45,21 +45,21 @@ Vercel não serve pra isso (funções serverless não ficam "ligadas").
 
 ## Como o painel (na internet) acessa esse computador
 
-O computador da paróquia normalmente não tem um endereço fixo acessível de fora. A forma
-mais simples de resolver isso é um túnel gratuito do [ngrok](https://ngrok.com/download):
+O computador da paróquia normalmente não tem um endereço fixo acessível de fora. Resolvemos
+isso com o **Cloudflare Tunnel** (`cloudflared.exe`, já baixado nessa pasta) — gratuito de
+verdade, sem precisar criar conta nem cartão.
 
-1. Crie uma conta gratuita no ngrok e siga as instruções do site pra instalar e autenticar
-   (`ngrok config add-authtoken ...`, o site mostra o comando certo com sua chave).
-2. Com o conector já rodando (passo 4 acima), abra **outra** janela do Prompt de Comando e
-   rode:
+1. Com o conector já rodando (passo 4 acima), dê duplo clique em
+   `robo\iniciar-cloudflared.bat`. Abre uma janela preta.
+2. Procure nessa janela por uma linha parecida com:
    ```
-   ngrok http 3000
+   https://palavras-aleatorias-aqui.trycloudflare.com
    ```
-3. O ngrok mostra uma URL pública tipo `https://algumacoisa.ngrok-free.app` — é essa URL
-   que vai em `ROBO_CONECTOR_URL` na Vercel.
-4. **O endereço do ngrok muda toda vez que você reinicia ele** (no plano gratuito). Pra não
-   precisar atualizar a Vercel toda hora, deixe o ngrok também ligando sozinho (mesma ideia
-   do item "Ligar sozinho" abaixo) e evite fechá-lo sem necessidade.
+   Essa é a URL pública — é ela que vai em `ROBO_CONECTOR_URL` na Vercel.
+3. **Essa URL muda toda vez que o túnel é reiniciado.** Pra não precisar atualizar a Vercel
+   toda hora, deixe o túnel também ligando sozinho (mesma ideia do item "Ligar sozinho"
+   abaixo) e evite fechá-lo sem necessidade. Se precisar reiniciar o computador, lembre de
+   atualizar `ROBO_CONECTOR_URL` na Vercel com a URL nova depois.
 
 ## Ligar sozinho quando o computador ligar
 
@@ -70,9 +70,9 @@ mais simples de resolver isso é um túnel gratuito do [ngrok](https://ngrok.com
 3. Pronto: da próxima vez que o computador ligar e alguém entrar com o usuário do
    Windows, o conector sobe sozinho, sem abrir janela na tela. Pra conferir se está
    rodando, abra o Gerenciador de Tarefas e procure por "Node.js JavaScript Runtime".
-4. Repita o mesmo processo pro `ngrok` (crie um atalho `ngrok http 3000` e coloque também
-   na pasta Inicializar), ou deixe o ngrok como uma janela aberta de propósito se preferir
-   acompanhar visualmente.
+4. Repita o mesmo processo pro túnel: copie `robo\iniciar-cloudflared-oculto.vbs` também
+   pra pasta Inicializar — mas lembre que, depois de um reinício, a URL pública muda e
+   `ROBO_CONECTOR_URL` precisa ser atualizada na Vercel.
 
 ## Reconectar depois de um bloqueio/logout do WhatsApp
 
@@ -83,8 +83,8 @@ painel mostra um QR novo — não precisa reiniciar nada manualmente.
 ## Alternativas, se um dia quiserem sair do computador da paróquia
 
 - **Oracle Cloud Always Free**: gratuito pra sempre, servidor que não dorme — exige mais
-  configuração (é uma VM Linux de verdade), mas resolve o problema do endereço público sem
-  precisar de ngrok.
+  configuração (é uma VM Linux de verdade), mas resolve o problema do endereço público de
+  vez (URL fixa, sem precisar reabrir o túnel nem atualizar a Vercel depois de um reinício).
 - **Railway/Render/Fly.io**: pagos (ou com ressalvas no plano grátis — Render dorme depois
   de inatividade, o que derruba a conexão do WhatsApp), mas com deploy bem mais simples
   (conectar o GitHub e pronto). Me avisem se quiserem migrar pra um desses depois.

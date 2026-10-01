@@ -8,5 +8,4 @@ node_modules/
 .env*
 !.env.example
 !**/.env.example
-robo/ngrok.exe
-robo/ngrok.zip
+robo/cloudflared.exe
