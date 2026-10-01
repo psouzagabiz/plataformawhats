@@ -3,7 +3,10 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "postgres": "^3.4.9"
+    "postgres": "^3.4.9",
+    "@whiskeysockets/baileys": "^6.7.9",
+    "qrcode": "^1.5.4",
+    "pino": "^9.4.0"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",

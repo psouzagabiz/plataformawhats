@@ -435,6 +435,17 @@
 
         <section class="painel">
           <div class="painel-cabeca">
+            <h2>Conexão do WhatsApp</h2>
+            <p class="suave pequeno">O robô que conversa com os fiéis precisa estar conectado a um número de WhatsApp.</p>
+          </div>
+          <div class="painel-corpo">
+            <span class="estado-robo" id="estadoRoboConfig" role="status"><span class="ponto-status"></span><span id="estadoRoboConfigTexto">Verificando…</span></span>
+          </div>
+          <div class="painel-rodape"><button class="primario" id="btnConectarRobo">Conectar WhatsApp</button></div>
+        </section>
+
+        <section class="painel">
+          <div class="painel-cabeca">
             <h2>Expediente da secretaria</h2>
             <p class="suave pequeno">Usado para calcular o prazo de confirmação: <b id="cfgRegra"></b></p>
           </div>
@@ -689,6 +700,27 @@
   </form>
 </dialog>
 
+<dialog id="dlgConectarRobo" aria-labelledby="robotTitulo" class="dialogo-robo">
+  <h2 id="robotTitulo">Conectar WhatsApp</h2>
+  <div id="roboCorpo" class="robo-corpo">
+    <div class="robo-qr-moldura" id="roboQrMoldura">
+      <div class="robo-pulso"></div>
+      <img id="roboQrImg" alt="QR code para conectar o WhatsApp" hidden>
+      <div id="roboCheck" class="robo-check" hidden><svg class="ic"><use href="#i-confirma"></use></svg></div>
+    </div>
+    <p id="roboStatusTexto" class="suave">Preparando o QR code…</p>
+  </div>
+  <ol class="robo-passos">
+    <li>Abra o WhatsApp no celular que vai atender a paróquia</li>
+    <li>Toque em <b>Mais opções</b> (ou Configurações) → <b>Aparelhos conectados</b></li>
+    <li>Toque em <b>Conectar um aparelho</b></li>
+    <li>Aponte a câmera do celular para este QR code</li>
+  </ol>
+  <div class="botoes">
+    <button type="button" class="secundario" id="btnFecharRobo">Fechar</button>
+  </div>
+</dialog>
+
 <div id="toasts" class="toasts" aria-live="polite"></div>
 <div id="toast" hidden></div>
 <script src="/app.js"></script>
@@ -697,5 +729,6 @@
 <script src="/agenda.js"></script>
 <script src="/teste.js"></script>
 <script src="/matriz.js"></script>
-<script src="/campanhas.js"></script></body>
+<script src="/campanhas.js"></script>
+<script src="/robo.js"></script></body>
 </html>

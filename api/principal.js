@@ -29,7 +29,9 @@ const PIX_CHAVE_DIZIMO = 'santanaposse@hotmail.com';
 
 const DURACAO_SESSAO_DIAS = 7;
 const MAX_MIDIA = 3 * 1024 * 1024; // limite de envio da Vercel (~4,5 MB com base64)
-const TELEFONE = /^[0-9]{5,20}@(c\.us|lid)$/;
+// @s.whatsapp.net é o sufixo real do Baileys (robo/); @c.us/@lid ficam aceitos também por
+// compatibilidade com dados antigos / outra lib de WhatsApp que viesse a ser usada no futuro.
+const TELEFONE = /^[0-9]{5,20}@(c\.us|lid|s\.whatsapp\.net)$/;
 const TIPOS_INSTITUICAO = ['paroquia', 'escola', 'outro'];
 const MAX_CADASTROS_POR_HORA = 3;
 
@@ -429,6 +431,19 @@ async function rotearJson(req, res, { rota, metodo, sql }) {
     const [r] = await sql`update regra_automatica set ativa = not ativa where id = ${id} and paroquia_id = ${eu.paroquiaId} returning id, ativa`;
     if (!r) throw new Erro404('Regra não encontrada.');
     return r;
+  }
+
+  /* ---------- conexão do robô (WhatsApp via QR code, hospedado no Railway) ---------- */
+  if (rota === 'robo/qr' && metodo === 'GET') {
+    if (eu.papel === 'atendente') throw new Erro403('Só administradoras podem conectar o WhatsApp.');
+    const base = process.env.ROBO_CONECTOR_URL;
+    const token = process.env.BOT_TOKEN;
+    if (!base || !token) throw new Erro400('Conector do robô ainda não configurado (ROBO_CONECTOR_URL/BOT_TOKEN).');
+    const resp = await fetch(`${base.replace(/\/$/, '')}/qr?paroquiaId=${eu.paroquiaId}`, {
+      headers: { 'x-bot-token': token },
+    }).catch(() => null);
+    if (!resp || !resp.ok) throw new Erro(502, 'Não foi possível falar com o conector do robô agora.');
+    return resp.json();
   }
 
   /* ---------- dízimo via Pix ----------
