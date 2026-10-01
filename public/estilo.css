@@ -291,6 +291,9 @@ button:disabled { opacity: .5; cursor: default; }
 .login-marca .marca-logo { background: #fff; color: var(--marca-azul); }
 .login-marca h2 { font-size: 2.1rem; font-weight: 600; letter-spacing: -.03em; margin: 12px 0 0; color: #fff; }
 .login-marca p { margin: 0 0 24px; max-width: 440px; font-size: 1.02rem; color: #c6d6f0; }
+.recursos-login { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; max-width: 420px; }
+.recursos-login li { position: relative; padding-left: 20px; font-size: .92rem; color: #dce6f6; }
+.recursos-login li::before { content: ''; position: absolute; left: 0; top: 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--marca-amarelo); }
 .login { align-self: center; justify-self: center; width: 100%; max-width: 400px; padding: 40px 24px; }
 .login h1 { margin-bottom: 4px; }
 .login > .suave { margin: 0 0 8px; }
@@ -578,6 +581,15 @@ button.indicador:hover { border-color: var(--borda-forte); box-shadow: var(--som
 }
 code { background: var(--superficie-3); padding: 0 5px; border-radius: 4px; font-size: .85em; color: var(--texto); }
 .secao-textos { font-size: .95rem; font-weight: 600; margin: 32px 0 10px; color: var(--texto); }
+.grade-form .largura-total { grid-column: 1 / -1; }
+.chips-grupo { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.chip-grupo {
+  border: 1px solid var(--borda-forte); border-radius: 999px; padding: 6px 14px; font-size: .85rem; color: var(--texto-2);
+  background: var(--superficie);
+}
+.chip-grupo.ativo { background: var(--primaria); border-color: var(--primaria); color: var(--primaria-texto); }
+.cartao-lista { background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio); box-shadow: var(--sombra-1); padding: 14px 16px; margin-bottom: 10px; }
+.cartao-lista .linha { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .campo-texto { background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio); padding: 16px; margin-bottom: 10px; box-shadow: var(--sombra-1); }
 .campo-texto label { margin-top: 0; font-weight: 600; font-size: .92rem; }
 .campo-texto .ajuda { font-size: .84rem; color: var(--texto-2); margin: -2px 0 10px; }

@@ -22,6 +22,10 @@ import { rotasAgenda } from '../lib/rotasAgenda.js';
 import { processarTeste, consultarTeste } from '../lib/teste.js';
 import { roboOnline } from '../lib/presenca.js';
 import { Erro, Erro400, Erro403, Erro404, Erro429 } from '../lib/erros.js';
+import { enviarCampanha } from '../lib/campanhas.js';
+import { criarCobranca } from '../lib/pix.js';
+
+const GRUPOS_VALIDOS = ['dizimistas', 'catequese', 'pastoral'];
 
 const DURACAO_SESSAO_DIAS = 7;
 const MAX_MIDIA = 3 * 1024 * 1024; // limite de envio da Vercel (~4,5 MB com base64)
@@ -362,6 +366,89 @@ async function rotearJson(req, res, { rota, metodo, sql }) {
 
   if (rota === 'teste' && metodo === 'POST') return processarTeste(sql, eu, body());
   if (rota === 'teste' && metodo === 'GET') return consultarTeste(sql, Number(query.id));
+
+  /* ---------- campanhas (envio em massa segmentado) ---------- */
+  if (rota === 'campanhas' && metodo === 'GET') {
+    return sql`select id, titulo, mensagem, grupos, destinatarios, criado_em as "criadoEm" from campanha where paroquia_id = ${eu.paroquiaId} order by criado_em desc limit 100`;
+  }
+  if (rota === 'campanhas' && metodo === 'POST') {
+    const { titulo, mensagem, grupos } = body();
+    if (!limpa(titulo, 120) || !limpa(mensagem, 4000)) throw new Erro400('Preencha o título e a mensagem.');
+    const gruposValidos = (Array.isArray(grupos) ? grupos : []).filter((g) => GRUPOS_VALIDOS.includes(g));
+    if (!gruposValidos.length) throw new Erro400('Escolha pelo menos um grupo.');
+    return enviarCampanha(sql, {
+      paroquiaId: eu.paroquiaId, titulo: limpa(titulo, 120), mensagem: limpa(mensagem, 4000),
+      grupos: gruposValidos, criadoPor: eu.nome,
+    });
+  }
+
+  /* ---------- lembretes automáticos por data ---------- */
+  if (rota === 'regras-automaticas' && metodo === 'GET') {
+    return sql`select id, tipo, titulo, mensagem, dia_do_mes as "diaDoMes", ativa, criado_em as "criadoEm" from regra_automatica where paroquia_id = ${eu.paroquiaId} order by criado_em desc`;
+  }
+  if (rota === 'regras-automaticas' && metodo === 'POST') {
+    const { tipo, titulo, mensagem, diaDoMes } = body();
+    if (!['aniversario', 'dizimo_mensal', 'lembrete'].includes(tipo)) throw new Erro400('Tipo de regra inválido.');
+    if (!limpa(titulo, 120) || !limpa(mensagem, 2000)) throw new Erro400('Preencha o nome e a mensagem.');
+    const dia = tipo === 'aniversario' ? null : Number(diaDoMes);
+    if (tipo !== 'aniversario' && !(dia >= 1 && dia <= 28)) throw new Erro400('Escolha um dia do mês entre 1 e 28.');
+    const [regra] = await sql`
+      insert into regra_automatica (paroquia_id, tipo, titulo, mensagem, dia_do_mes)
+      values (${eu.paroquiaId}, ${tipo}, ${limpa(titulo, 120)}, ${limpa(mensagem, 2000)}, ${dia})
+      returning id, tipo, titulo, mensagem, dia_do_mes as "diaDoMes", ativa, criado_em as "criadoEm"
+    `;
+    return regra;
+  }
+  if (rota === 'regras-automaticas/executar' && metodo === 'POST') {
+    const { executarRegrasAutomaticasHoje } = await import('../lib/campanhas.js');
+    return executarRegrasAutomaticasHoje(sql);
+  }
+  if (rota.startsWith('regras-automaticas/') && metodo === 'PATCH') {
+    const id = Number(rota.split('/')[1]);
+    const [r] = await sql`update regra_automatica set ativa = not ativa where id = ${id} and paroquia_id = ${eu.paroquiaId} returning id, ativa`;
+    if (!r) throw new Erro404('Regra não encontrada.');
+    return r;
+  }
+
+  /* ---------- dízimo via Pix ---------- */
+  if (rota === 'pix/criar' && metodo === 'POST') {
+    const { telefone, valorCentavos } = body();
+    exigeTelefone(telefone);
+    const cobranca = await criarCobranca({ telefone, valorCentavos: Number(valorCentavos), paroquiaId: eu.paroquiaId });
+    await sql`
+      insert into pagamento_pix (paroquia_id, telefone, valor_centavos, mp_payment_id, status, qr_code, copia_cola, criado_por)
+      values (${eu.paroquiaId}, ${telefone}, ${Number(valorCentavos)}, ${cobranca.mpPaymentId}, ${cobranca.status}, ${cobranca.qrCode}, ${cobranca.copiaCola}, ${eu.nome})
+    `;
+    if (cobranca.copiaCola) {
+      const texto = `Segue o Pix do dízimo (${(Number(valorCentavos) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}):\n\n${cobranca.copiaCola}`;
+      await sql`insert into saida (tipo, telefone, texto, autor, paroquia_id) values ('texto', ${telefone}, ${texto}, ${eu.nome}, ${eu.paroquiaId})`;
+    }
+    return cobranca;
+  }
+
+  /* ---------- mensagens entre paróquias ---------- */
+  if (rota === 'mensagens-entre-paroquias' && metodo === 'GET') {
+    const mensagens = await sql`
+      select m.id, m.texto, m.criado_por as "criadoPor", m.criado_em as "criadoEm",
+        p.nome as "deNome", m.para_paroquia_id as "paraParoquiaId"
+      from mensagem_paroquia m join paroquia p on p.id = m.de_paroquia_id
+      where m.para_paroquia_id = ${eu.paroquiaId} or m.para_paroquia_id is null or m.de_paroquia_id = ${eu.paroquiaId}
+      order by m.criado_em desc limit 200
+    `;
+    const paroquias = await sql`select id, nome from paroquia where status = 'ativa' and id <> ${eu.paroquiaId} order by nome`;
+    return { mensagens, paroquias };
+  }
+  if (rota === 'mensagens-entre-paroquias' && metodo === 'POST') {
+    const { texto, paraParoquiaId } = body();
+    if (!limpa(texto, 2000)) throw new Erro400('Escreva uma mensagem.');
+    const paraId = paraParoquiaId ? Number(paraParoquiaId) : null;
+    const [m] = await sql`
+      insert into mensagem_paroquia (de_paroquia_id, para_paroquia_id, texto, criado_por)
+      values (${eu.paroquiaId}, ${paraId}, ${limpa(texto, 2000)}, ${eu.nome})
+      returning id
+    `;
+    return m;
+  }
 
   /* ---------- painel matriz (super-admin) ---------- */
   if (rota.startsWith('matriz/')) {

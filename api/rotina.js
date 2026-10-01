@@ -3,6 +3,7 @@
 import { banco, garantirEsquema } from '../lib/banco.js';
 import { tokenIgual } from '../lib/seguranca.js';
 import { executarRotina } from '../lib/confirmacao.js';
+import { executarRegrasAutomaticasHoje } from '../lib/campanhas.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -30,7 +31,11 @@ export default async function handler(req, res) {
     // executarRotina() diretamente — ver lib/confirmacao.js para o aviso de reconstrução
     // dessa lógica.
     const resultado = await executarRotina(String(req.query.origem || ''));
-    return res.status(200).json({ ok: true, ...resultado });
+    const lembretes = await executarRegrasAutomaticasHoje().catch((e) => {
+      console.error('[rotina] regras automáticas', e);
+      return { enfileiradas: 0 };
+    });
+    return res.status(200).json({ ok: true, ...resultado, lembretesEnfileirados: lembretes.enfileiradas });
   } catch (e) {
     console.error('[rotina]', e);
     return res.status(500).json({ erro: e.message });
