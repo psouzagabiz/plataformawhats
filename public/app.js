@@ -675,6 +675,15 @@ $('dlgPronta').addEventListener('close', async () => {
 
 /* ---------- Enviar arquivo ---------- */
 const MAX_ARQUIVO = 3 * 1024 * 1024;
+$('btnPix').addEventListener('click', async () => {
+  try {
+    const { texto } = await api('pix/chave');
+    campoTexto.value = campoTexto.value ? `${campoTexto.value}\n\n${texto}` : texto;
+    ajustarAltura();
+    campoTexto.focus();
+  } catch (err) { toast(err.message, 'erro'); }
+});
+
 $('btnAnexo').addEventListener('click', () => $('arquivo').click());
 $('arquivo').addEventListener('change', () => {
   const f = $('arquivo').files[0];

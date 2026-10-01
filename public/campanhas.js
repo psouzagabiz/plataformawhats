@@ -101,6 +101,59 @@ $('btnExecutarLembretes').addEventListener('click', async () => {
   } catch (err) { toast(err.message, 'erro'); }
 });
 
+/* ---------- Importar dizimistas aniversariantes (CSV) ---------- */
+let linhasImportar = [];
+
+function dividirLinhaCsv(linha, separador) {
+  return linha.split(separador).map((c) => c.trim().replace(/^"|"$/g, ''));
+}
+
+function lerCsv(texto) {
+  const linhas = texto.split(/\r?\n/).filter((l) => l.trim());
+  if (!linhas.length) return [];
+  const separador = (linhas[0].match(/;/g) || []).length >= (linhas[0].match(/,/g) || []).length ? ';' : ',';
+  const cabecalho = dividirLinhaCsv(linhas[0], separador).map((c) => c.toLowerCase());
+  const idxNome = cabecalho.findIndex((c) => c.includes('nome'));
+  const idxTelefone = cabecalho.findIndex((c) => c.includes('telefone') || c.includes('contato') || c.includes('whatsapp'));
+  const idxData = cabecalho.findIndex((c) => c.includes('anivers') || c.includes('nascimento'));
+  if (idxNome < 0 || idxTelefone < 0 || idxData < 0) {
+    throw new Error('O arquivo precisa ter colunas de nome, telefone e aniversário.');
+  }
+  return linhas.slice(1).map((l) => {
+    const campos = dividirLinhaCsv(l, separador);
+    return { nome: campos[idxNome] || '', telefone: campos[idxTelefone] || '', aniversario: campos[idxData] || '' };
+  }).filter((l) => l.nome && l.telefone);
+}
+
+$('arquivoAniversariantes').addEventListener('change', async () => {
+  const f = $('arquivoAniversariantes').files[0];
+  $('btnImportarAniversariantes').disabled = true;
+  linhasImportar = [];
+  if (!f) { $('resultadoImportacao').textContent = ''; return; }
+  try {
+    linhasImportar = lerCsv(await f.text());
+    $('resultadoImportacao').textContent = `${linhasImportar.length} linha(s) prontas para importar.`;
+    $('btnImportarAniversariantes').disabled = !linhasImportar.length;
+  } catch (err) {
+    $('resultadoImportacao').textContent = err.message;
+  }
+});
+
+$('btnImportarAniversariantes').addEventListener('click', async () => {
+  if (!linhasImportar.length) return;
+  $('btnImportarAniversariantes').disabled = true;
+  try {
+    const r = await api('dizimistas/importar', { metodo: 'POST', corpo: { linhas: linhasImportar } });
+    $('resultadoImportacao').textContent = `${r.importados} importado(s)${r.invalidos ? `, ${r.invalidos} com telefone ou data inválidos` : ''}.`;
+    toast('Importação concluída.', 'sucesso');
+    $('arquivoAniversariantes').value = '';
+    linhasImportar = [];
+  } catch (err) {
+    toast(err.message, 'erro');
+    $('btnImportarAniversariantes').disabled = false;
+  }
+});
+
 document.addEventListener('vista', (e) => {
   if (e.detail === 'campanhas') carregarCampanhas();
   if (e.detail === 'lembretes') carregarRegras();

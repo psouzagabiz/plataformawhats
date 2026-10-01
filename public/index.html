@@ -79,7 +79,6 @@
   <symbol id="i-recolher" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2.5"></rect><path d="M9 3v18M15.5 9.5 13 12l2.5 2.5"></path></symbol>
   <symbol id="i-relogio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"></circle><path d="M12 7v5l3 2"></path></symbol>
   <symbol id="i-sino" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"></path></symbol>
-  <symbol id="i-rede" viewBox="0 0 24 24"><circle cx="5" cy="7" r="3"></circle><circle cx="19" cy="7" r="3"></circle><circle cx="12" cy="19" r="3"></circle><path d="M7.5 8.7 10 16.5M16.5 8.7 14 16.5M8 7h8"></path></symbol>
 </svg>
 
 <!-- ============ LOGIN ============ -->
@@ -89,10 +88,9 @@
     <h2>Paroquiano</h2>
     <p>O atendimento da paróquia pelo WhatsApp, num só lugar: conversas com os fiéis, agenda dos padres e confirmações de presença.</p>
     <ul class="recursos-login">
-      <li>Dízimo e oferta com Pix, direto na conversa</li>
-      <li>Campanhas e lembretes automáticos por data</li>
+      <li>Chave Pix do dízimo a um clique, direto na conversa</li>
+      <li>Campanhas e lembretes automáticos por data, com aniversariantes importados</li>
       <li>Agenda dos padres com confirmação de presença</li>
-      <li>Comunicação entre paróquias conectadas</li>
     </ul>
   </section>
   <form class="login" id="formLogin">
@@ -173,7 +171,6 @@
       <hr>
       <button class="nav" data-vista="campanhas" title="Campanhas"><svg class="ic"><use href="#i-enviar"></use></svg><span>Campanhas</span></button>
       <button class="nav" data-vista="lembretes" title="Lembretes automáticos"><svg class="ic"><use href="#i-relogio"></use></svg><span>Lembretes automáticos</span></button>
-      <button class="nav" data-vista="paroquias" title="Entre paróquias"><svg class="ic"><use href="#i-rede"></use></svg><span>Entre paróquias</span></button>
       <hr>
       <button class="nav" data-vista="textos" title="Mensagens automáticas"><svg class="ic"><use href="#i-robo"></use></svg><span>Mensagens automáticas</span></button>
       <button class="nav" data-vista="configuracoes" title="Configurações"><svg class="ic"><use href="#i-ajustes"></use></svg><span>Configurações</span></button>
@@ -308,6 +305,7 @@
               </div>
               <button type="button" class="botao-icone" id="btnAnexo" title="Enviar foto ou documento" aria-label="Enviar foto ou documento"><svg class="ic"><use href="#i-anexo"></use></svg></button>
               <input type="file" id="arquivo" hidden accept="image/*,application/pdf,audio/*,video/*">
+              <button type="button" class="botao-icone" id="btnPix" title="Inserir chave Pix do dízimo" aria-label="Inserir chave Pix do dízimo"><svg class="ic"><use href="#i-recibo"></use></svg></button>
               <label for="texto" class="sr">Mensagem</label>
               <textarea id="texto" rows="1" placeholder="Escreva uma mensagem" maxlength="4000"></textarea>
               <button type="submit" class="primario botao-enviar" id="btnEnviar" title="Enviar (Enter)" aria-label="Enviar mensagem"><svg class="ic"><use href="#i-enviar"></use></svg></button>
@@ -532,30 +530,17 @@
         </section>
         <h2 class="secao-textos">Regras ativas</h2>
         <div id="listaRegras"></div>
-      </div>
-    </section>
 
-    <!-- ---------- Entre paróquias ---------- -->
-    <section id="vistaParoquias" class="vista pagina" data-nome="paroquias" hidden>
-      <div class="pagina-conteudo">
-        <div class="pagina-topo">
-          <div>
-            <h1>Entre paróquias</h1>
-            <p class="subtitulo">A comunicação acontece também entre paróquias conectadas, não só com os fiéis.</p>
-          </div>
-        </div>
+        <h2 class="secao-textos">Importar dizimistas aniversariantes</h2>
+        <p class="subtitulo">Arquivo CSV com as colunas <code>nome</code>, <code>aniversario</code> (DD/MM/AAAA) e <code>telefone</code>. Quem já conversa com a paróquia tem o nome e o aniversário atualizados; quem ainda não conversou é cadastrado como dizimista mesmo assim, pra já poder receber a mensagem de aniversário.</p>
         <section class="painel">
           <div class="painel-corpo">
-            <form id="formMensagemParoquia" class="grade-form">
-              <label>Para
-                <select id="mpParaId"><option value="">Todas as paróquias conectadas</option></select>
-              </label>
-              <label class="largura-total">Mensagem <textarea id="mpTexto" rows="3" maxlength="2000" required></textarea></label>
-            </form>
+            <label for="arquivoAniversariantes">Arquivo CSV</label>
+            <input type="file" id="arquivoAniversariantes" accept=".csv,text/csv">
+            <p id="resultadoImportacao" class="suave pequeno"></p>
           </div>
-          <div class="painel-rodape"><button class="primario" id="btnEnviarMensagemParoquia">Enviar</button></div>
+          <div class="painel-rodape"><button class="primario" id="btnImportarAniversariantes" disabled>Importar</button></div>
         </section>
-        <div id="listaMensagensParoquia"></div>
       </div>
     </section>
 
@@ -712,7 +697,5 @@
 <script src="/agenda.js"></script>
 <script src="/teste.js"></script>
 <script src="/matriz.js"></script>
-<script src="/campanhas.js"></script>
-<script src="/paroquias.js"></script>
-</body>
+<script src="/campanhas.js"></script></body>
 </html>
