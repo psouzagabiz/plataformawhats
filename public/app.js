@@ -516,6 +516,7 @@ async function carregarMensagens() {
     humano && s ? el('span', { class: 'setor' }, [ponto(c.setor), ` ${s.nome} (${s.quem})`]) : null);
   $('btnAssumir').hidden = humano;
   $('btnEncerrar').hidden = !humano;
+  $('btnFinalizarAtendimento').hidden = !humano;
   if (document.activeElement !== $('selSetor')) $('selSetor').value = c.setor || estado.eu.setor;
   $('enviando').hidden = !dados.enviando;
 
@@ -610,6 +611,13 @@ $('btnAssumir').addEventListener('click', () => acao('assumir', {}, 'Você assum
 $('btnEncerrar').addEventListener('click', async () => {
   if (!(await confirmar('Encerrar atendimento?', 'O cliente recebe a mensagem de despedida e o robô volta a responder.', 'Encerrar'))) return;
   acao('encerrar', {}, 'Atendimento encerrado. O robô voltou a responder.');
+});
+
+$('btnFinalizarAtendimento').addEventListener('click', async () => {
+  if (!(await confirmar('Encerrar atendimento e pedir avaliação?',
+    'O cliente recebe a mensagem de despedida, depois o robô pergunta se pode ajudar em algo mais (se disser que sim, volta pra você) e por fim pede uma nota de 1 a 5.',
+    'Encerrar e pedir nota'))) return;
+  acao('finalizar-atendimento', {}, 'Atendimento encerrado. Avaliação será pedida ao cliente.');
 });
 
 $('selSetor').addEventListener('change', async () => {

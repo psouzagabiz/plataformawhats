@@ -316,6 +316,23 @@ async function rotearJson(req, res, { rota, metodo, sql }) {
     return {};
   }
 
+  // Diferente de "encerrar" (devolve direto pro menu do robô): aqui o cliente é despedido e
+  // perguntado se pode ajudar em algo mais — se disser que sim, a conversa volta pro MESMO
+  // setor que já estava cuidando dela (não pro menu geral); se não, pede a nota de 1 a 5.
+  if (rota === 'finalizar-atendimento' && metodo === 'POST') {
+    const { telefone } = body();
+    exigeTelefone(telefone);
+    const [c] = await sql`select textos->>'encerramentoHumano' as encerramento, textos->>'fim' as fim from conteudo where paroquia_id = ${eu.paroquiaId}`;
+    const encerramento = c?.encerramento || 'Encerrando por aqui. Se precisar de algo mais, é só chamar!';
+    const fim = c?.fim || 'Posso ajudar em algo mais?';
+    for (const texto of [encerramento, fim]) {
+      await sql`insert into mensagem (telefone, remetente, texto, paroquia_id) values (${telefone}, 'bot', ${texto}, ${eu.paroquiaId})`;
+      await sql`insert into saida (tipo, telefone, texto, paroquia_id) values ('bot', ${telefone}, ${texto}, ${eu.paroquiaId})`;
+    }
+    await sql`update conversa set estado = null, etapa = 'aguardando_fim_humano', tentativas_invalidas = 0 where telefone = ${telefone} and paroquia_id = ${eu.paroquiaId}`;
+    return {};
+  }
+
   if (rota === 'transferir' && metodo === 'POST') {
     const { telefone, setor } = body();
     exigeTelefone(telefone);
