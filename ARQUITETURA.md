@@ -180,3 +180,46 @@ Feito na branch `multi-instituicao`, testado num deploy de preview antes de ir p
   duas tabelas para `(paroquia_id, telefone)` — não feito nesta etapa.
 
 <!-- deploy automatico via Git conectado em 2026-09-26 -->
+
+## Status em 2026-10-08: `main` estava 15 commits atrás de `unificar-paroquiano` — corrigido
+
+Descoberto ao investigar por que a produção parecia não refletir mudanças recentes: o
+branch "Production" da Vercel segue o branch padrão do GitHub (`main`), mas desde a criação
+do branch `unificar-paroquiano` (a partir do commit `3bc2f9f`, o mesmo citado na seção
+"Pegadinha" acima) todo o trabalho seguinte — conector de WhatsApp de verdade (Baileys/QR
+code), motor de conversa do robô, dízimo via Pix, aniversariantes/grupos, campanhas,
+lembretes automáticos, **as duas correções do flood do robô** e as otimizações de
+performance abaixo — ficou só em `unificar-paroquiano`, nunca voltou pra `main`. A produção
+real ficou rodando o código de antes de tudo isso por pelo menos 12 dias, sem que os
+deploys em `unificar-paroquiano` (que apareciam `READY` nas listagens) nunca tivessem
+`target: production` nem tocassem o domínio `paroquiano-painel.vercel.app` — o mesmo tipo de
+confusão que a seção "Pegadinha" já alertava para verificar com `vercel inspect`, não só
+`state`/`target`.
+
+Corrigido com um fast-forward simples (`main` nunca tinha divergido — zero conflito):
+`git checkout main && git merge --ff-only origin/unificar-paroquiano && git push`.
+Confirmado depois com `vercel inspect paroquiano-painel.vercel.app` (campo `id`/`created`
+batendo com o deploy novo) e uma chamada real a `/api/instituicoes`.
+
+**Daqui pra frente**: continuar trabalhando em `unificar-paroquiano` e, a cada etapa
+validada em preview, mesclar em `main` e publicar (`git push origin main`) — não deixar
+acumular divergência de novo. Alternativa mais robusta, a considerar: apagar `main` como
+branch separado e tornar `unificar-paroquiano` o próprio branch padrão/produção do projeto,
+já que a distinção entre os dois deixou de fazer sentido.
+
+### Otimizações de performance (nesta mesma leva, branch `otimizacoes-performance`)
+
+- Inserts em lote (em vez de um insert por linha num loop) em `dizimistas/importar`
+  (`api/principal.js`) e em `enviarCampanha`/`executarRegrasAutomaticasHoje`
+  (`lib/campanhas.js`), usando o helper `sql(array, ...colunas)` da lib `postgres`.
+- Índices novos em `lib/banco.js` para as consultas mais frequentes que não tinham nenhum:
+  `saida_pendente_idx` (polling do robô a cada poucos segundos — a consulta mais frequente
+  do sistema), `compromisso_agendado_idx`/`compromisso_aguardando_idx` (rotina de
+  confirmação chamada todo minuto), `conversa_paroquia_idx`, `comprovante_paroquia_idx`,
+  `campanha_paroquia_idx` (consultas do painel).
+- Timeout de 8s (`AbortSignal.timeout`) no fetch da rota `robo/qr` pro conector do robô, em
+  vez de prender a função até o limite de 30s quando o conector está lento/fora do ar.
+- Validado antes do merge: localmente contra um Postgres descartável (PGlite, já era
+  devDependency do projeto) recriando o schema do zero e testando os inserts em lote com
+  1200 linhas; e no preview da Vercel, confirmando que a migração rodou limpa contra o
+  banco de produção real (`/api/instituicoes` respondendo com dados reais).
