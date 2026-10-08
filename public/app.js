@@ -76,13 +76,29 @@ function tocarSino() {
   } catch { /* som é um extra; nunca deve travar o painel */ }
 }
 // o navegador só libera áudio depois de uma interação real da pessoa — prepara o contexto
-// no primeiro clique/toque da sessão, bem antes do sino tentar tocar sozinho pelo timer
+// no primeiro clique/toque da sessão, bem antes do sino tentar tocar sozinho pelo timer.
+// Aproveita o mesmo clique pra pedir permissão de notificação do sistema (fora da aba/app) —
+// se a pessoa já respondeu antes (concedeu ou negou), o navegador nem mostra o pedido de novo.
 document.addEventListener('pointerdown', () => {
   try {
     contextoAudio ||= new (window.AudioContext || window.webkitAudioContext)();
     if (contextoAudio.state === 'suspended') contextoAudio.resume();
   } catch { /* idem acima */ }
+  try {
+    if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+  } catch { /* idem acima */ }
 }, { once: true });
+
+// aviso do sistema operacional, visível mesmo em outra aba ou outro app — só funciona depois
+// da permissão concedida (pedida acima). Usa "tag" + "renotify" pra cada pendência nova
+// substituir o aviso anterior da mesma conversa em vez de empilhar vários.
+function notificarForaDoSite(telefone, titulo, corpo) {
+  try {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const n = new Notification(titulo, { body: corpo, tag: `pendencia-${telefone}`, renotify: true });
+    n.onclick = () => { window.focus(); n.close(); };
+  } catch { /* notificação é um extra; nunca deve travar o painel */ }
+}
 
 // estado vazio: ilustração simples + orientação do próximo passo
 function vazio(titulo, texto, acao) {
@@ -397,11 +413,12 @@ async function carregarConversas() {
   } catch { /* tenta de novo na próxima atualização */ }
 }
 
-function tocarAlerta() {
+function tocarAlerta(telefone, mensagem) {
   $('btnSom').classList.remove('tocando');
   void $('btnSom').offsetWidth;
   $('btnSom').classList.add('tocando');
   if (estado.somAtivo) tocarSino();
+  if (telefone && mensagem) notificarForaDoSite(telefone, 'Atendimento pendente', mensagem);
 }
 
 // toca o sino quando surge uma pendência de verdade pro meu setor: conversa já passada pra
@@ -410,9 +427,13 @@ function tocarAlerta() {
 // ignorado na primeira carga (login).
 function notificarSeChegouMensagem(antes, depois) {
   const vistoPor = new Map(antes.map((c) => [c.telefone, c.ultimaEm]));
-  const chegou = depois.some((c) => c.estado === 'humano' && c.setor === estado.eu?.setor
+  const chegadas = depois.filter((c) => c.estado === 'humano' && c.setor === estado.eu?.setor
     && c.ultimaRemetente === 'cliente' && c.ultimaEm && c.ultimaEm !== vistoPor.get(c.telefone));
-  if (chegou) tocarAlerta();
+  if (!chegadas.length) return;
+  const mensagem = chegadas.length === 1
+    ? `${nomeDe(chegadas[0])} está esperando resposta.`
+    : `${chegadas.length} pessoas esperando resposta no seu setor.`;
+  tocarAlerta(chegadas[0].telefone, mensagem);
 }
 
 // repete o alerta (som + aviso na tela) a cada 3min enquanto a pendência não for respondida —
@@ -429,8 +450,9 @@ function verificarPendenciasAtrasadas() {
     const desde = ULTIMO_ALERTA_PENDENCIA.get(c.telefone) ?? new Date(c.ultimaEm).getTime();
     if (agora - desde >= INTERVALO_ALERTA_PENDENCIA_MS) {
       ULTIMO_ALERTA_PENDENCIA.set(c.telefone, agora);
-      toast(`Atendimento pendente: ${nomeDe(c)} ainda espera resposta.`, 'erro');
-      tocarAlerta();
+      const mensagem = `${nomeDe(c)} ainda espera resposta.`;
+      toast(`Atendimento pendente: ${mensagem}`, 'erro');
+      tocarAlerta(c.telefone, mensagem);
     } else if (!ULTIMO_ALERTA_PENDENCIA.has(c.telefone)) {
       ULTIMO_ALERTA_PENDENCIA.set(c.telefone, desde); // guarda quando a pendência chegou, sem alertar ainda
     }
