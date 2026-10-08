@@ -396,11 +396,14 @@ async function carregarConversas() {
   } catch { /* tenta de novo na próxima atualização */ }
 }
 
-// toca o sino quando uma conversa recebe mensagem nova do fiel (não da própria equipe/robô
-// respondendo) — comparado com o instantâneo anterior, ignorado na primeira carga (login)
+// toca o sino quando surge uma pendência de verdade pro meu setor: conversa já passada pra
+// humano (não o robô ainda respondendo sozinho), do MEU setor, com mensagem nova do fiel —
+// mesma regra do contador "meus" do menu (linha ~426). Comparado com o instantâneo anterior,
+// ignorado na primeira carga (login).
 function notificarSeChegouMensagem(antes, depois) {
   const vistoPor = new Map(antes.map((c) => [c.telefone, c.ultimaEm]));
-  const chegou = depois.some((c) => c.ultimaRemetente === 'cliente' && c.ultimaEm && c.ultimaEm !== vistoPor.get(c.telefone));
+  const chegou = depois.some((c) => c.estado === 'humano' && c.setor === estado.eu?.setor
+    && c.ultimaRemetente === 'cliente' && c.ultimaEm && c.ultimaEm !== vistoPor.get(c.telefone));
   if (!chegou) return;
   $('btnSom').classList.remove('tocando');
   void $('btnSom').offsetWidth;
