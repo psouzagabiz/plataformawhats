@@ -3,16 +3,13 @@
 // NOTA DE RECONSTRUÇÃO: ver o aviso no topo do histórico deste arquivo em ARQUITETURA.md —
 // o roteador original foi perdido quase por completo e isto é uma reconstrução de boa-fé.
 //
-// NOTA MULTI-INSTITUIÇÃO (2026-09-26): `conversa` e `mensagem` são chaveadas por
-// `telefone`, sem `paroquia_id` na chave primária (não mexemos na PK de uma tabela já em
-// produção — ver lib/banco.js). Isso significa que, se a MESMA pessoa (mesmo número de
-// WhatsApp) escrever para DUAS instituições diferentes, as duas conversas colidiriam numa
-// única linha. Todas as rotas abaixo filtram por `paroquia_id` como proteção (uma
-// instituição nunca lê/escreve na conversa de outra), mas nesse cenário raro a pessoa
-// simplesmente não conseguiria ter uma conversa registrada com a segunda instituição até
-// isso ser corrigido de verdade (mudar a chave primária para (paroquia_id, telefone) —
-// deixado como próximo passo, não feito agora para não mexer numa chave primária já usada
-// em produção sem necessidade imediata).
+// NOTA MULTI-INSTITUIÇÃO: `conversa` era chaveada só por `telefone` — se a MESMA pessoa
+// (mesmo número de WhatsApp) escrevesse para DUAS instituições diferentes, as duas
+// conversas colidiriam numa única linha. Corrigido em 2026-10 (lib/banco.js, criar()): a
+// chave primária passou a ser (paroquia_id, telefone). `mensagem` nunca teve essa
+// limitação (não tem FK/unicidade por telefone, é só uma coluna de texto). Todas as rotas
+// abaixo continuam filtrando por `paroquia_id` como proteção (uma instituição nunca
+// lê/escreve na conversa de outra).
 import { banco, garantirEsquema } from '../lib/banco.js';
 import {
   hashSenha, conferirSenha, novoToken, hashToken, ipDe, lerCookie,
@@ -498,7 +495,7 @@ async function rotearJson(req, res, { rota, metodo, sql }) {
       const pedaco = validas.slice(i, i + LOTE);
       await sql`
         insert into conversa ${sql(pedaco, 'telefone', 'nome', 'aniversario', 'grupos', 'paroquia_id')}
-        on conflict (telefone) do update set
+        on conflict (paroquia_id, telefone) do update set
           nome = excluded.nome,
           aniversario = coalesce(excluded.aniversario, conversa.aniversario),
           grupos = (select array(select distinct unnest(conversa.grupos || excluded.grupos)))

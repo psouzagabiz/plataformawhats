@@ -89,7 +89,7 @@ async function conectar() {
         await sql`
           insert into conversa (telefone, nome, paroquia_id, atualizado_em)
           values (${telefone}, '', ${PAROQUIA_ID}, now())
-          on conflict (telefone) do update set atualizado_em = now()
+          on conflict (paroquia_id, telefone) do update set atualizado_em = now()
         `;
 
         // confirmação de presença (1/2/3) tem prioridade sobre o menu só quando existe
