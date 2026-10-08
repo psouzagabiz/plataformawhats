@@ -456,8 +456,11 @@ async function rotearJson(req, res, { rota, metodo, sql }) {
     const base = process.env.ROBO_CONECTOR_URL;
     const token = process.env.BOT_TOKEN;
     if (!base || !token) throw new Erro400('Conector do robô ainda não configurado (ROBO_CONECTOR_URL/BOT_TOKEN).');
+    // timeout próprio (bem menor que o maxDuration de 30s da função): se o conector no
+    // Railway estiver lento/fora do ar, falha rápido em vez de prender a função até o limite.
     const resp = await fetch(`${base.replace(/\/$/, '')}/qr?paroquiaId=${eu.paroquiaId}`, {
       headers: { 'x-bot-token': token },
+      signal: AbortSignal.timeout(8000),
     }).catch(() => null);
     if (!resp || !resp.ok) throw new Erro(502, 'Não foi possível falar com o conector do robô agora.');
     return resp.json();
@@ -479,24 +482,29 @@ async function rotearJson(req, res, { rota, metodo, sql }) {
   if (rota === 'dizimistas/importar' && metodo === 'POST') {
     const { linhas } = body();
     if (!Array.isArray(linhas) || !linhas.length) throw new Erro400('Nenhuma linha para importar.');
-    let importados = 0;
+    const validas = [];
     const invalidos = [];
     for (const linha of linhas) {
       const telefone = normalizarTelefone(linha.telefone);
       const aniversario = normalizarData(linha.aniversario);
       const nome = limpa(linha.nome, 120);
       if (!telefone || !nome) { invalidos.push(linha); continue; }
-      await sql`
-        insert into conversa (telefone, nome, aniversario, grupos, paroquia_id)
-        values (${telefone}, ${nome}, ${aniversario}, ${sql.array(['dizimistas'])}, ${eu.paroquiaId})
-        on conflict (telefone) do update set
-          nome = ${nome},
-          aniversario = coalesce(${aniversario}, conversa.aniversario),
-          grupos = (select array(select distinct unnest(conversa.grupos || ${sql.array(['dizimistas'])})))
-      `;
-      importados++;
+      validas.push({ telefone, nome, aniversario, grupos: ['dizimistas'], paroquia_id: eu.paroquiaId });
     }
-    return { importados, invalidos: invalidos.length };
+    // em lotes (não um insert por linha): uma planilha de centenas de pessoas fazia
+    // centenas de round-trips sequenciais ao banco antes desta mudança.
+    const LOTE = 500;
+    for (let i = 0; i < validas.length; i += LOTE) {
+      const pedaco = validas.slice(i, i + LOTE);
+      await sql`
+        insert into conversa ${sql(pedaco, 'telefone', 'nome', 'aniversario', 'grupos', 'paroquia_id')}
+        on conflict (telefone) do update set
+          nome = excluded.nome,
+          aniversario = coalesce(excluded.aniversario, conversa.aniversario),
+          grupos = (select array(select distinct unnest(conversa.grupos || excluded.grupos)))
+      `;
+    }
+    return { importados: validas.length, invalidos: invalidos.length };
   }
 
   /* ---------- painel matriz (super-admin) ---------- */
