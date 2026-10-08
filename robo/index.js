@@ -116,6 +116,14 @@ async function conectar() {
 
 await conectar();
 
+// Identifica quem da secretaria respondeu — "autor" só vem preenchido em mensagens de
+// atendente (ver api/principal.js, rotas enviar/midia/nova); mensagens automáticas do bot
+// (encerrar/finalizar-atendimento) não têm autor e chegam ao fiel sem esse prefixo.
+function comNomeDoAtendente(texto, autor) {
+  if (!autor) return texto || '';
+  return `*${autor}:*\n${texto || ''}`.trim();
+}
+
 // laço de envio: drena a fila "saida" (ver api/principal.js) a cada poucos segundos
 setInterval(async () => {
   if (statusConexao !== 'conectado' || !socketAtual) return;
@@ -132,14 +140,15 @@ setInterval(async () => {
           const [m] = await sql`select tipo, dados from midia where id = ${s.midia_id}`;
           if (!m) throw new Error('mídia não encontrada');
           const buffer = Buffer.from(m.dados);
-          const opcoes = m.tipo?.startsWith('image/') ? { image: buffer, caption: s.texto || undefined }
-            : m.tipo?.startsWith('video/') ? { video: buffer, caption: s.texto || undefined }
+          const textoComAutor = comNomeDoAtendente(s.texto, s.autor);
+          const opcoes = m.tipo?.startsWith('image/') ? { image: buffer, caption: textoComAutor || undefined }
+            : m.tipo?.startsWith('video/') ? { video: buffer, caption: textoComAutor || undefined }
             : m.tipo?.startsWith('audio/') ? { audio: buffer, mimetype: m.tipo, ptt: false }
             : { document: buffer, mimetype: m.tipo || 'application/octet-stream', fileName: s.nome_arquivo || 'arquivo' };
           const enviado = await socketAtual.sendMessage(jid, opcoes);
           await registrarEntrega(s.id, { msgId: enviado?.key?.id });
         } else {
-          const enviado = await socketAtual.sendMessage(jid, { text: s.texto || '' });
+          const enviado = await socketAtual.sendMessage(jid, { text: comNomeDoAtendente(s.texto, s.autor) });
           await registrarEntrega(s.id, { msgId: enviado?.key?.id });
         }
       } catch (e) {
