@@ -71,8 +71,8 @@ function tocarSino() {
       osc.connect(g); g.connect(contextoAudio.destination);
       osc.start(inicio); osc.stop(inicio + duracao + .05);
     };
-    tom(659.25, agora, .28, .1);        // Mi5
-    tom(987.77, agora + .09, .32, .09); // Si5
+    tom(659.25, agora, .28, .4);        // Mi5
+    tom(987.77, agora + .09, .32, .35); // Si5
   } catch { /* som é um extra; nunca deve travar o painel */ }
 }
 // o navegador só libera áudio depois de uma interação real da pessoa — prepara o contexto
@@ -393,7 +393,15 @@ async function carregarConversas() {
     estado.conversasCarregadas = true;
     desenharAbas();
     desenharLista();
+    verificarPendenciasAtrasadas();
   } catch { /* tenta de novo na próxima atualização */ }
+}
+
+function tocarAlerta() {
+  $('btnSom').classList.remove('tocando');
+  void $('btnSom').offsetWidth;
+  $('btnSom').classList.add('tocando');
+  if (estado.somAtivo) tocarSino();
 }
 
 // toca o sino quando surge uma pendência de verdade pro meu setor: conversa já passada pra
@@ -404,11 +412,32 @@ function notificarSeChegouMensagem(antes, depois) {
   const vistoPor = new Map(antes.map((c) => [c.telefone, c.ultimaEm]));
   const chegou = depois.some((c) => c.estado === 'humano' && c.setor === estado.eu?.setor
     && c.ultimaRemetente === 'cliente' && c.ultimaEm && c.ultimaEm !== vistoPor.get(c.telefone));
-  if (!chegou) return;
-  $('btnSom').classList.remove('tocando');
-  void $('btnSom').offsetWidth;
-  $('btnSom').classList.add('tocando');
-  if (estado.somAtivo) tocarSino();
+  if (chegou) tocarAlerta();
+}
+
+// repete o alerta (som + aviso na tela) a cada 3min enquanto a pendência não for respondida —
+// evita que uma mensagem passe batido só porque o sino tocou uma vez e ninguém viu. O relógio
+// de cada pendência zera quando alguém responde (ela some do filtro) ou quando dispara de novo.
+const ULTIMO_ALERTA_PENDENCIA = new Map(); // telefone -> timestamp (ms) da última vez que alertou
+const INTERVALO_ALERTA_PENDENCIA_MS = 3 * 60 * 1000;
+function verificarPendenciasAtrasadas() {
+  const agora = Date.now();
+  const pendentesAgora = new Set();
+  for (const c of estado.conversas) {
+    if (!(c.estado === 'humano' && c.setor === estado.eu?.setor && c.ultimaRemetente === 'cliente')) continue;
+    pendentesAgora.add(c.telefone);
+    const desde = ULTIMO_ALERTA_PENDENCIA.get(c.telefone) ?? new Date(c.ultimaEm).getTime();
+    if (agora - desde >= INTERVALO_ALERTA_PENDENCIA_MS) {
+      ULTIMO_ALERTA_PENDENCIA.set(c.telefone, agora);
+      toast(`Atendimento pendente: ${nomeDe(c)} ainda espera resposta.`, 'erro');
+      tocarAlerta();
+    } else if (!ULTIMO_ALERTA_PENDENCIA.has(c.telefone)) {
+      ULTIMO_ALERTA_PENDENCIA.set(c.telefone, desde); // guarda quando a pendência chegou, sem alertar ainda
+    }
+  }
+  for (const telefone of [...ULTIMO_ALERTA_PENDENCIA.keys()]) {
+    if (!pendentesAgora.has(telefone)) ULTIMO_ALERTA_PENDENCIA.delete(telefone);
+  }
 }
 
 const aguardando = (c) => c.estado === 'humano';
