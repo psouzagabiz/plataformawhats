@@ -4,6 +4,7 @@ import { banco, garantirEsquema } from '../lib/banco.js';
 import { tokenIgual } from '../lib/seguranca.js';
 import { executarRotina } from '../lib/confirmacao.js';
 import { executarRegrasAutomaticasHoje } from '../lib/campanhas.js';
+import { enviarAgendaDiariaPadres } from '../lib/agendaPadre.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -35,7 +36,15 @@ export default async function handler(req, res) {
       console.error('[rotina] regras automáticas', e);
       return { enfileiradas: 0 };
     });
-    return res.status(200).json({ ok: true, ...resultado, lembretesEnfileirados: lembretes.enfileiradas });
+    const agendasPadre = await enviarAgendaDiariaPadres().catch((e) => {
+      console.error('[rotina] agenda diária do padre', e);
+      return { enfileiradas: 0 };
+    });
+    return res.status(200).json({
+      ok: true, ...resultado,
+      lembretesEnfileirados: lembretes.enfileiradas,
+      agendasPadreEnfileiradas: agendasPadre.enfileiradas,
+    });
   } catch (e) {
     console.error('[rotina]', e);
     return res.status(500).json({ erro: e.message });
